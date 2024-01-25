@@ -1,0 +1,2 @@
+﻿-- Debug Source Generators in Jetbrains Rider:
+https://blog.jetbrains.com/dotnet/2023/07/13/debug-source-generators-in-jetbrains-rider/
