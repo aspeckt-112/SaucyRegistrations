@@ -3,14 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.7.34031.279
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".extras", ".extras", "{604A404D-18EB-444A-94BE-7C2542A7CDB4}"
-	ProjectSection(SolutionItems) = preProject
-		.gitignore = .gitignore
-		LICENSE = LICENSE
-		README.md = README.md
-		.extras\UsefulLinks.txt = .extras\UsefulLinks.txt
-	EndProjectSection
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{AEFEA8EB-D9A0-4802-A7EA-4706280545CF}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{B383DBBB-FE5F-40A5-9ABC-4DECE5EC87C8}"
@@ -24,6 +16,22 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Saucy.Common", "src\Saucy.Common\Saucy.Common.csproj", "{97B6E34D-44FB-45A5-A1EC-3EA68C79EE49}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExampleAssemblyOfReusableComponents", "samples\libs\ExampleAssemblyOfReusableComponents\ExampleAssemblyOfReusableComponents.csproj", "{E998BEAE-33B5-4CAE-8B41-FC049437F11A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "artifacts", "artifacts", "{CB91836B-D340-4F27-B7FE-1C35B1E7922E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{B09A1D41-8CD8-4951-B3F4-08CC6EB6CAFE}"
+	ProjectSection(SolutionItems) = preProject
+		docs\useful_links.txt = docs\useful_links.txt
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{AE74EBA8-FA8A-4284-AC81-CA2C116B9E67}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SaucyRegistrations.Generators", "tests\SaucyRegistrations.Generators\SaucyRegistrations.Generators.csproj", "{45BB2E83-5E1C-49B4-9244-84006C79764B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".config", ".config", "{28CD9887-6F0A-4708-BDB3-F8D7C4B163C4}"
+	ProjectSection(SolutionItems) = preProject
+		Directory.Packages.props = Directory.Packages.props
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -47,6 +55,10 @@ Global
 		{E998BEAE-33B5-4CAE-8B41-FC049437F11A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E998BEAE-33B5-4CAE-8B41-FC049437F11A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E998BEAE-33B5-4CAE-8B41-FC049437F11A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{45BB2E83-5E1C-49B4-9244-84006C79764B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45BB2E83-5E1C-49B4-9244-84006C79764B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45BB2E83-5E1C-49B4-9244-84006C79764B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45BB2E83-5E1C-49B4-9244-84006C79764B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -57,5 +69,6 @@ Global
 		{36BFFD8F-E011-4BD6-A66E-17544D11F277} = {B383DBBB-FE5F-40A5-9ABC-4DECE5EC87C8}
 		{97B6E34D-44FB-45A5-A1EC-3EA68C79EE49} = {AEFEA8EB-D9A0-4802-A7EA-4706280545CF}
 		{E998BEAE-33B5-4CAE-8B41-FC049437F11A} = {36BFFD8F-E011-4BD6-A66E-17544D11F277}
+		{45BB2E83-5E1C-49B4-9244-84006C79764B} = {AE74EBA8-FA8A-4284-AC81-CA2C116B9E67}
 	EndGlobalSection
 EndGlobal
