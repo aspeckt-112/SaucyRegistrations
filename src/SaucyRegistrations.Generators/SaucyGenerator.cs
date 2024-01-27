@@ -6,7 +6,9 @@ using System.Text;
 using Microsoft.CodeAnalysis;
 using Saucy.Common.Attributes;
 using Saucy.Common.Enums;
+using SaucyRegistrations.Generators.Configurations;
 using SaucyRegistrations.Generators.Extensions;
+using SaucyRegistrations.Generators.Parameters;
 
 namespace SaucyRegistrations.Generators;
 
@@ -20,117 +22,116 @@ public class SaucyGenerator : ISourceGenerator
 
 	public void Execute(GeneratorExecutionContext context)
 	{
-		context.ReportDiagnostic(Diagnostics.StartingSaucySourceGeneration);
-
-		(List<Diagnostic> diagnostics, RunParameters? runParameters) = BuildRunParameters(context);
-
-		// Some diagnostics might have been added during the generation process.
-		// They're not necessarily errors, so just write them out.
-		// The nullability of runParameters indicates whether or not the generation process was successful.
-		if (diagnostics.Count > 0)
-		{
-			foreach (Diagnostic diagnostic in diagnostics)
-			{
-				context.ReportDiagnostic(diagnostic);
-			}
-
-			return;
-		}
-
+		RunConfiguration? runParameters = BuildRunConfiguration(context);
+		
 		if (runParameters is null)
 		{
-			// Just return, there's nothing to do and all the diagnostics have already been added.
+			// TODO Should I do something here?
 			return;
 		}
 
 		string source = GenerateRegistrationCode(runParameters, context.Compilation.ObjectType);
-
-		context.AddSource($"{runParameters.PartialClass}.Generated.cs", source);
+		
+		context.AddSource($"{runParameters.GenerationConfiguration.Class}.Generated.cs", source);
 	}
-
-	private (List<Diagnostic> diagnostics, RunParameters? runParameters) BuildRunParameters(
+	
+	private RunConfiguration? BuildRunConfiguration(
 		GeneratorExecutionContext context
 	)
 	{
-		List<Diagnostic> diagnostics = [];
-
 		IAssemblySymbol compilationAssembly = context.Compilation.Assembly;
 
-		AttributeData? saucyCompilationTargetAttribute
-			= compilationAssembly.GetFirstAttributeWithNameOrNull(nameof(SourceGenerationTarget));
-
-		// SourceGenerationTarget is mandatory. If it's not found, then there's no point in continuing.
-		if (saucyCompilationTargetAttribute is null)
+		List<INamespaceSymbol> namespacesInCompilationAssembly
+			= compilationAssembly.GlobalNamespace.GetListOfNamespaces().ToList();
+		
+		if (namespacesInCompilationAssembly.Count == 0)
 		{
-			diagnostics.Add(Diagnostics.SaucyTargetAttributeNotFound);
-			return (diagnostics, null);
+			throw new InvalidOperationException("No namespaces found in the compilation assembly.");
 		}
 
-		(string? @namespace, string? partialClass, string? generationMethod)
-			= GetDetailsFromSaucyCompilationTarget(saucyCompilationTargetAttribute);
+		GenerationConfiguration? generationConfiguration = BuildGenerationConfiguration(namespacesInCompilationAssembly);
 
-		// It's mandatory to have a namespace, partial class name and generation method name. If any is missing, then there's no point in continuing.
-		if (AllStringsOrNullOrEmpty(@namespace, partialClass, generationMethod))
+		if (generationConfiguration is null)
 		{
-			diagnostics.Add(Diagnostics.SaucyTargetAttributeMissingProperties);
-			return (diagnostics, null);
+			throw new InvalidOperationException(
+				"No generation configuration found. Have you applied the [GenerateServiceCollectionMethod] attribute to a class?"
+			);
+		}
+		
+		var assemblyScanConfigurations = new
+			Dictionary<IAssemblySymbol, AssemblyScanConfiguration>();
+
+		if (compilationAssembly.ShouldBeIncludedInSourceGeneration())
+		{
+			AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyScanConfiguration(compilationAssembly);
 		}
 
-		RunParameters runParameters = new(@namespace, partialClass, generationMethod);
+		return new RunConfiguration(generationConfiguration);
+		// RunParameter runParameter = new(@namespace, partialClass, generationMethod);
+		//
+		// Dictionary<IAssemblySymbol, AssemblyScanConfiguration> assemblyScanConfigurations = new();
+		//
+		// if (compilationAssembly.ShouldBeIncludedInSourceGeneration())
+		// {
+		// 	AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyScanConfiguration(compilationAssembly);
+		// 	assemblyScanConfigurations.Add(compilationAssembly, assemblyScanConfiguration);
+		// }
+		//
+		// ImmutableArray<IAssemblySymbol> referencedAssemblySymbols = context.Compilation
+		//                                                                    .SourceModule.ReferencedAssemblySymbols;
+		//
+		// List<IAssemblySymbol> assembliesToScan
+		// 	= referencedAssemblySymbols.Where(x => x.ShouldBeIncludedInSourceGeneration()).ToList();
+		//
+		// foreach (IAssemblySymbol assemblySymbol in assembliesToScan)
+		// {
+		// 	AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyScanConfiguration(assemblySymbol);
+		// 	assemblyScanConfigurations.Add(assemblySymbol, assemblyScanConfiguration);
+		// }
+		//
+		// // At this point, if there's nothing in the map then there's nothing to generate. So bail out.
+		// if (assemblyScanConfigurations.Count == 0)
+		// {
+		// 	diagnostics.Add(Diagnostics.NoAssembliesToScan);
+		// 	return (diagnostics, null);
+		// }
+		//
+		// IEnumerable<(ITypeSymbol, ServiceScope)> allTypeSymbolsInAllAssemblies
+		// 	= GetAllTypeSymbolsInAllAssemblies(assemblyScanConfigurations);
+		//
+		// runParameter.Types.AddRange(allTypeSymbolsInAllAssemblies);
+		//
+		// return (diagnostics, runParameter);
 
-		Dictionary<IAssemblySymbol, AssemblyScanConfiguration> assemblyScanConfigurations = new();
-
-		if (compilationAssembly.HasSaucyIncludeAttribute())
-		{
-			AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyDetail(compilationAssembly);
-			assemblyScanConfigurations.Add(compilationAssembly, assemblyScanConfiguration);
-		}
-
-		ImmutableArray<IAssemblySymbol> referencedAssemblySymbols = context.Compilation
-		                                                                   .SourceModule.ReferencedAssemblySymbols;
-
-		List<IAssemblySymbol> assembliesToScan
-			= referencedAssemblySymbols.Where(x => x.HasSaucyIncludeAttribute()).ToList();
-
-		foreach (IAssemblySymbol assemblySymbol in assembliesToScan)
-		{
-			AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyDetail(assemblySymbol);
-			assemblyScanConfigurations.Add(assemblySymbol, assemblyScanConfiguration);
-		}
-
-		// At this point, if there's nothing in the map then there's nothing to generate. So bail out.
-		if (assemblyScanConfigurations.Count == 0)
-		{
-			diagnostics.Add(Diagnostics.NoAssembliesToScan);
-			return (diagnostics, null);
-		}
-
-		IEnumerable<(ITypeSymbol, ServiceScope)> allTypeSymbolsInAllAssemblies
-			= GetAllTypeSymbolsInAllAssemblies(assemblyScanConfigurations);
-
-		runParameters.Types.AddRange(allTypeSymbolsInAllAssemblies);
-
-		return (diagnostics, runParameters);
 	}
-
-	private (string @namespace, string partialClass, string generationMethod) GetDetailsFromSaucyCompilationTarget(
-		AttributeData saucyCompilationTargetAttribute
-	)
+	
+	private GenerationConfiguration? BuildGenerationConfiguration(IEnumerable<INamespaceSymbol> namespaceSymbols)
 	{
-		var @namespace = saucyCompilationTargetAttribute.GetParameter<string>(nameof(SourceGenerationTarget.Namespace));
+		// Within each namespace, look for the first class with the GenerateServiceCollectionMethodAttribute attribute.
+		// If it's found, then use the namespace and class name to build the generation configuration.
+		// If it's not found, then return null.
+		foreach (INamespaceSymbol namespaceSymbol in namespaceSymbols)
+		{
+			foreach (INamedTypeSymbol namedTypeSymbol in namespaceSymbol.GetTypeMembers())
+			{
+				foreach (AttributeData? attribute in namedTypeSymbol.GetAttributes())
+				{
+					if (attribute.Is<GenerateServiceCollectionMethodAttribute>())
+					{
+						var methodName = attribute.GetValueOfPropertyWithName<string>(nameof(GenerateServiceCollectionMethodAttribute.MethodName));
 
-		var partialClass
-			= saucyCompilationTargetAttribute.GetParameter<string>(nameof(SourceGenerationTarget.PartialClass));
-
-		var generationMethod
-			= saucyCompilationTargetAttribute.GetParameter<string>(nameof(SourceGenerationTarget.GenerationMethod));
-
-		return (@namespace, partialClass, generationMethod);
+						return new GenerationConfiguration(
+							namespaceSymbol.ToDisplayString(), namedTypeSymbol.Name, $"{methodName}_Generated"
+						);
+					}
+				}
+			}
+		}
+		
+		return null;
 	}
-
-	private bool AllStringsOrNullOrEmpty(params string[] strings) => strings.All(string.IsNullOrWhiteSpace);
-
-	private AssemblyScanConfiguration BuildAssemblyDetail(IAssemblySymbol assemblySymbol)
+	
+	private AssemblyScanConfiguration BuildAssemblyScanConfiguration(IAssemblySymbol assemblySymbol)
 	{
 		AssemblyScanConfiguration result = new();
 
@@ -147,6 +148,25 @@ public class SaucyGenerator : ISourceGenerator
 
 		return result;
 	}
+
+	private (string @namespace, string partialClass, string generationMethod) GetDetailsFromSaucyCompilationTarget(
+		AttributeData saucyCompilationTargetAttribute
+	)
+	{
+		throw new NotImplementedException();
+		// var @namespace = saucyCompilationTargetAttribute.GetParameter<string>(nameof(GenerateServiceCollectionMethodAttribute.Namespace));
+		//
+		// var partialClass
+		// 	= saucyCompilationTargetAttribute.GetParameter<string>(nameof(GenerateServiceCollectionMethodAttribute.PartialClass));
+		//
+		// var generationMethod
+		// 	= saucyCompilationTargetAttribute.GetParameter<string>(nameof(GenerateServiceCollectionMethodAttribute.GenerationMethod));
+		//
+		// return (@namespace, partialClass, generationMethod);
+	}
+
+
+	
 
 	private IEnumerable<(ITypeSymbol, ServiceScope)> GetAllTypeSymbolsInAllAssemblies(
 		Dictionary<IAssemblySymbol, AssemblyScanConfiguration> assemblySymbolToAssemblyDetailMap
@@ -247,16 +267,16 @@ public class SaucyGenerator : ISourceGenerator
 			return result;
 		}
 
-		// Check to see if the assembly has a SaucyClassSuffix attribute. If it does, then only include types that end with the suffix.
+		// Check to see if the assembly has a GenerateRegistrationForClassesWithSuffixAttribute attribute. If it does, then only include types that end with the suffix.
 		// If it doesn't, then include all types.
 		AttributeData? saucyClassSuffixAttribute
-			= assemblySymbol.GetFirstAttributeWithNameOrNull(nameof(SaucyClassSuffix));
+			= assemblySymbol.GetFirstAttributeWithNameOrNull(nameof(GenerateRegistrationForClassesWithSuffixAttribute));
 
 		string? suffix = null;
 
 		if (saucyClassSuffixAttribute is not null)
 		{
-			suffix = saucyClassSuffixAttribute.GetParameter<string>(nameof(SaucyClassSuffix.Suffix));
+			suffix = saucyClassSuffixAttribute.GetParameter<string>(nameof(GenerateRegistrationForClassesWithSuffixAttribute.Suffix));
 		}
 
 		bool assemblyHasClassSuffix = !string.IsNullOrWhiteSpace(suffix);
@@ -302,76 +322,78 @@ public class SaucyGenerator : ISourceGenerator
 		return result;
 	}
 
-	private string GenerateRegistrationCode(RunParameters runParameters, INamedTypeSymbol objectSymbol)
+	private string GenerateRegistrationCode(RunConfiguration runConfiguration, INamedTypeSymbol objectSymbol)
 	{
 		var sourceBuilder = new StringBuilder();
+		
+		GenerationConfiguration generationConfiguration = runConfiguration.GenerationConfiguration;
 
 		sourceBuilder.Append(
 			$@"//<auto-generated by Saucy on {DateTime.Now} />
 using Microsoft.Extensions.DependencyInjection;
 
-namespace {runParameters.Namespace}
+namespace {generationConfiguration.Namespace}
 {{
- public static partial class {runParameters.PartialClass}
+ public static partial class {generationConfiguration.Class}
  {{
-  public static void {runParameters.GenerationMethod}(IServiceCollection serviceCollection)
+  public static void {generationConfiguration.Method}(IServiceCollection serviceCollection)
   {{"
 		);
 
 		sourceBuilder.AppendLine();
 
-		Dictionary<ServiceScope, string> serviceScopeToMethodNameMap = new()
-		{
-			{ ServiceScope.Singleton, "serviceCollection.AddSingleton" },
-			{ ServiceScope.Scoped, "serviceCollection.AddScoped" },
-			{ ServiceScope.Transient, "serviceCollection.AddTransient" }
-		};
-
-		foreach ((ITypeSymbol typeSymbol, ServiceScope typeScope) in runParameters.Types)
-		{
-			string fullyQualifiedTypeName = typeSymbol.ToDisplayString();
-
-			// Check to see if the class has a base type that's not "object". If it does, then also check to see if the base type is abstract.
-			// If it is, also register the concrete type against the base type to support resolving by the base type.
-			INamedTypeSymbol? classBaseType = typeSymbol.BaseType;
-
-			bool classHasBaseType = classBaseType is not null && !ReferenceEquals(classBaseType, objectSymbol);
-
-			if (classHasBaseType && typeSymbol.BaseType!.IsAbstract)
-			{
-				string fullyQualifiedBaseTypeName = typeSymbol.BaseType.ToDisplayString();
-
-				sourceBuilder.AppendLine(
-					$@"			{serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedBaseTypeName}, {fullyQualifiedTypeName}>();"
-				);
-			}
-
-			bool classHasInterfaces = typeSymbol.Interfaces.Length > 0;
-
-			switch (classHasInterfaces)
-			{
-				// If the class has interfaces, then register the concrete type against each interface to support resolving by
-				// the interface type.
-				case true:
-				{
-					foreach (INamedTypeSymbol @interface in typeSymbol.Interfaces)
-					{
-						string fullyQualifiedInterfaceName = @interface.ToDisplayString();
-
-						sourceBuilder.AppendLine(
-							$@"			{serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedInterfaceName}, {fullyQualifiedTypeName}>();"
-						);
-					}
-
-					break;
-				}
-				// If the class has no interfaces, and no base type, then just register the concrete type against itself.
-				case false 
-			    when !classHasBaseType:
-					sourceBuilder.AppendLine($@"			{serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedTypeName}>();");
-					break;
-			}
-		}
+		// Dictionary<ServiceScope, string> serviceScopeToMethodNameMap = new()
+		// {
+		// 	{ ServiceScope.Singleton, "serviceCollection.AddSingleton" },
+		// 	{ ServiceScope.Scoped, "serviceCollection.AddScoped" },
+		// 	{ ServiceScope.Transient, "serviceCollection.AddTransient" }
+		// };
+		//
+		// foreach ((ITypeSymbol typeSymbol, ServiceScope typeScope) in runParameter.Types)
+		// {
+		// 	string fullyQualifiedTypeName = typeSymbol.ToDisplayString();
+		//
+		// 	// Check to see if the class has a base type that's not "object". If it does, then also check to see if the base type is abstract.
+		// 	// If it is, also register the concrete type against the base type to support resolving by the base type.
+		// 	INamedTypeSymbol? classBaseType = typeSymbol.BaseType;
+		//
+		// 	bool classHasBaseType = classBaseType is not null && !ReferenceEquals(classBaseType, objectSymbol);
+		//
+		// 	if (classHasBaseType && typeSymbol.BaseType!.IsAbstract)
+		// 	{
+		// 		string fullyQualifiedBaseTypeName = typeSymbol.BaseType.ToDisplayString();
+		//
+		// 		sourceBuilder.AppendLine(
+		// 			$@"			{serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedBaseTypeName}, {fullyQualifiedTypeName}>();"
+		// 		);
+		// 	}
+		//
+		// 	bool classHasInterfaces = typeSymbol.Interfaces.Length > 0;
+		//
+		// 	switch (classHasInterfaces)
+		// 	{
+		// 		// If the class has interfaces, then register the concrete type against each interface to support resolving by
+		// 		// the interface type.
+		// 		case true:
+		// 		{
+		// 			foreach (INamedTypeSymbol @interface in typeSymbol.Interfaces)
+		// 			{
+		// 				string fullyQualifiedInterfaceName = @interface.ToDisplayString();
+		//
+		// 				sourceBuilder.AppendLine(
+		// 					$@"			{serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedInterfaceName}, {fullyQualifiedTypeName}>();"
+		// 				);
+		// 			}
+		//
+		// 			break;
+		// 		}
+		// 		// If the class has no interfaces, and no base type, then just register the concrete type against itself.
+		// 		case false 
+		// 	    when !classHasBaseType:
+		// 			sourceBuilder.AppendLine($@"			{serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedTypeName}>();");
+		// 			break;
+		// 	}
+		// }
 
 		sourceBuilder.AppendLine(@"		}");
 		sourceBuilder.AppendLine(@"	}");

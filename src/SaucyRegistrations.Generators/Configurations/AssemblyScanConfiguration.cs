@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Saucy.Common.Enums;
 
-namespace SaucyRegistrations.Generators;
+namespace SaucyRegistrations.Generators.Configurations;
 
 public class AssemblyScanConfiguration
 {

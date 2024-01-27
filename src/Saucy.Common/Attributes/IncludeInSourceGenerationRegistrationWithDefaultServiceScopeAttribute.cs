@@ -4,9 +4,9 @@ using Saucy.Common.Enums;
 namespace Saucy.Common.Attributes
 {
 	[AttributeUsage(AttributeTargets.Assembly)]
-	public class IncludeInSourceGeneration : Attribute
+	public class IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute : Attribute
 	{
-		public IncludeInSourceGeneration(ServiceScope defaultServiceScope)
+		public IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute(ServiceScope defaultServiceScope)
 		{
 			DefaultServiceScope = defaultServiceScope;
 		}

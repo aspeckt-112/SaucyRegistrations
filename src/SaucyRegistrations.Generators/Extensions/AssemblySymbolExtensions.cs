@@ -20,11 +20,11 @@ public static class AssemblySymbolExtensions
 	
 	internal static ServiceScope GetDefaultServiceScope(this IAssemblySymbol assemblySymbol)
 	{
-		AttributeData saucyTargetAttribute = assemblySymbol.GetFirstAttributeWithName(nameof(IncludeInSourceGeneration));
+		AttributeData saucyTargetAttribute = assemblySymbol.GetFirstAttributeWithName(nameof(IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute));
 
-		return saucyTargetAttribute.GetParameter<ServiceScope>(nameof(IncludeInSourceGeneration.DefaultServiceScope));
+		return saucyTargetAttribute.GetParameter<ServiceScope>(nameof(IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute.DefaultServiceScope));
 	}
 
-	internal static bool HasSaucyIncludeAttribute(this ISymbol symbol)
-		=> symbol.GetFirstAttributeWithNameOrNull(nameof(IncludeInSourceGeneration)) is not null;
+	internal static bool ShouldBeIncludedInSourceGeneration(this ISymbol symbol)
+		=> symbol.GetFirstAttributeWithNameOrNull(nameof(IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute)) is not null;
 }

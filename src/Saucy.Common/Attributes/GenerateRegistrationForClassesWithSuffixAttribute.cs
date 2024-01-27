@@ -3,9 +3,9 @@
 namespace Saucy.Common.Attributes
 {
 	[AttributeUsage(AttributeTargets.Assembly)]
-	public class SaucyClassSuffix : Attribute
+	public class GenerateRegistrationForClassesWithSuffixAttribute : Attribute
 	{
-		public SaucyClassSuffix(string suffix)
+		public GenerateRegistrationForClassesWithSuffixAttribute(string suffix)
 		{
 			Suffix = suffix;
 		}
