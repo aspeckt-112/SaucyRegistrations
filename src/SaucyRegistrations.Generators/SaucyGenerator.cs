@@ -64,19 +64,14 @@ public class SaucyGenerator : ISourceGenerator
 		if (compilationAssembly.ShouldBeIncludedInSourceGeneration())
 		{
 			AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyScanConfiguration(compilationAssembly);
+			assemblyScanConfigurations.Add(compilationAssembly, assemblyScanConfiguration);
 		}
+		
+		ImmutableArray<IAssemblySymbol> referencedAssemblySymbols = context.Compilation
+		                                                                   .SourceModule.ReferencedAssemblySymbols;
 
 		return new RunConfiguration(generationConfiguration);
-		// RunParameter runParameter = new(@namespace, partialClass, generationMethod);
-		//
-		// Dictionary<IAssemblySymbol, AssemblyScanConfiguration> assemblyScanConfigurations = new();
-		//
-		// if (compilationAssembly.ShouldBeIncludedInSourceGeneration())
-		// {
-		// 	AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyScanConfiguration(compilationAssembly);
-		// 	assemblyScanConfigurations.Add(compilationAssembly, assemblyScanConfiguration);
-		// }
-		//
+
 		// ImmutableArray<IAssemblySymbol> referencedAssemblySymbols = context.Compilation
 		//                                                                    .SourceModule.ReferencedAssemblySymbols;
 		//
@@ -139,7 +134,7 @@ public class SaucyGenerator : ISourceGenerator
 
 		if (excludedNamespaces.Count > 0)
 		{
-			result.ExcludedNamespaces.UnionWith(excludedNamespaces);
+			result.ExcludedNamespaces.AddRange(excludedNamespaces);
 		}
 
 		result.IncludeMicrosoftNamespaces = assemblySymbol.ShouldIncludeMicrosoftNamespaces();
@@ -194,20 +189,21 @@ public class SaucyGenerator : ISourceGenerator
 	private (IAssemblySymbol assemblySymbol, AssemblyScanConfiguration assemblyDetail, List<INamespaceSymbol> namespaceSymbols )
 		GetNamespaceSymbolsFromAssembly(IAssemblySymbol assemblySymbol, AssemblyScanConfiguration assemblyScanConfiguration)
 	{
-		List<INamespaceSymbol> namespaceSymbols = [];
-
-		INamespaceSymbol globalNamespace = assemblySymbol.GlobalNamespace;
-		HashSet<string> excludedNamespaces = assemblyScanConfiguration.ExcludedNamespaces;
-		bool includeMicrosoftNamespaces = assemblyScanConfiguration.IncludeMicrosoftNamespaces;
-		bool includeSystemNamespaces = assemblyScanConfiguration.IncludeSystemNamespaces;
-
-		IEnumerable<INamespaceSymbol> namespacesInAssembly = ResolveChildNamespacesRecursively(
-			globalNamespace, excludedNamespaces, includeMicrosoftNamespaces, includeSystemNamespaces
-		);
-
-		namespaceSymbols.AddRange(namespacesInAssembly);
-
-		return (assemblySymbol, assemblyScanConfiguration, namespaceSymbols);
+		throw new NotImplementedException();
+		// List<INamespaceSymbol> namespaceSymbols = [];
+		//
+		// INamespaceSymbol globalNamespace = assemblySymbol.GlobalNamespace;
+		// List<string> excludedNamespaces = assemblyScanConfiguration.ExcludedNamespaces;
+		// bool includeMicrosoftNamespaces = assemblyScanConfiguration.IncludeMicrosoftNamespaces;
+		// bool includeSystemNamespaces = assemblyScanConfiguration.IncludeSystemNamespaces;
+		//
+		// IEnumerable<INamespaceSymbol> namespacesInAssembly = ResolveChildNamespacesRecursively(
+		// 	globalNamespace, excludedNamespaces, includeMicrosoftNamespaces, includeSystemNamespaces
+		// );
+		//
+		// namespaceSymbols.AddRange(namespacesInAssembly);
+		//
+		// return (assemblySymbol, assemblyScanConfiguration, namespaceSymbols);
 	}
 
 	private IEnumerable<INamespaceSymbol> ResolveChildNamespacesRecursively(

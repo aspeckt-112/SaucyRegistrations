@@ -3,9 +3,9 @@
 namespace Saucy.Common.Attributes
 {
 	[AttributeUsage(AttributeTargets.Assembly)]
-	public class SaucyExcludeNamespace : Attribute
+	public class WhenRegisteringExcludeClassesInNamespaceAttribute : Attribute
 	{
-		public SaucyExcludeNamespace(string @namespace)
+		public WhenRegisteringExcludeClassesInNamespaceAttribute(string @namespace)
 		{
 			Namespace = @namespace;
 		}
