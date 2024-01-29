@@ -82,6 +82,9 @@ public class SaucyGenerator : ISourceGenerator
 		{
 			return null;
 		}
+		
+		Dictionary<ITypeSymbol, ServiceScope> allTypeSymbolsInAllAssemblies
+			= GetAllTypeSymbolsInAllAssemblies(assemblyScanConfigurations)
 
 		return new RunConfiguration(generationConfiguration);
 		
@@ -144,48 +147,41 @@ public class SaucyGenerator : ISourceGenerator
 
 		return result;
 	}
-
-	private (string @namespace, string partialClass, string generationMethod) GetDetailsFromSaucyCompilationTarget(
-		AttributeData saucyCompilationTargetAttribute
-	)
-	{
-		throw new NotImplementedException();
-		// var @namespace = saucyCompilationTargetAttribute.GetParameter<string>(nameof(GenerateServiceCollectionMethodAttribute.Namespace));
-		//
-		// var partialClass
-		// 	= saucyCompilationTargetAttribute.GetParameter<string>(nameof(GenerateServiceCollectionMethodAttribute.PartialClass));
-		//
-		// var generationMethod
-		// 	= saucyCompilationTargetAttribute.GetParameter<string>(nameof(GenerateServiceCollectionMethodAttribute.GenerationMethod));
-		//
-		// return (@namespace, partialClass, generationMethod);
-	}
-
-
 	
-
-	private IEnumerable<(ITypeSymbol, ServiceScope)> GetAllTypeSymbolsInAllAssemblies(
+	private Dictionary<ITypeSymbol, ServiceScope> GetAllTypeSymbolsInAllAssemblies(
 		Dictionary<IAssemblySymbol, AssemblyScanConfiguration> assemblySymbolToAssemblyDetailMap
 	)
 	{
-		List<(ITypeSymbol, ServiceScope)> result = new();
+		Dictionary<ITypeSymbol, ServiceScope> result = new();
 
-		foreach (KeyValuePair<IAssemblySymbol, AssemblyScanConfiguration> entry in assemblySymbolToAssemblyDetailMap)
-		{
-			(IAssemblySymbol assemblySymbol, AssemblyScanConfiguration assemblyDetails, List<INamespaceSymbol> namespaceSymbols)
-				= GetNamespaceSymbolsFromAssembly(entry.Key, entry.Value);
 
-			foreach (INamespaceSymbol namespaceSymbol in namespaceSymbols)
-			{
-				IEnumerable<(ITypeSymbol, ServiceScope)> typeSymbolsFromNamespace
-					= GetTypeSymbolsFromNamespace(namespaceSymbol, assemblySymbol, assemblyDetails);
-
-				result.AddRange(typeSymbolsFromNamespace);
-			}
-		}
 
 		return result;
 	}
+	
+
+	// private IEnumerable<(ITypeSymbol, ServiceScope)> GetAllTypeSymbolsInAllAssemblies(
+	// 	Dictionary<IAssemblySymbol, AssemblyScanConfiguration> assemblySymbolToAssemblyDetailMap
+	// )
+	// {
+	// 	List<(ITypeSymbol, ServiceScope)> result = new();
+	//
+	// 	foreach (KeyValuePair<IAssemblySymbol, AssemblyScanConfiguration> entry in assemblySymbolToAssemblyDetailMap)
+	// 	{
+	// 		(IAssemblySymbol assemblySymbol, AssemblyScanConfiguration assemblyDetails, List<INamespaceSymbol> namespaceSymbols)
+	// 			= GetNamespaceSymbolsFromAssembly(entry.Key, entry.Value);
+	//
+	// 		foreach (INamespaceSymbol namespaceSymbol in namespaceSymbols)
+	// 		{
+	// 			IEnumerable<(ITypeSymbol, ServiceScope)> typeSymbolsFromNamespace
+	// 				= GetTypeSymbolsFromNamespace(namespaceSymbol, assemblySymbol, assemblyDetails);
+	//
+	// 			result.AddRange(typeSymbolsFromNamespace);
+	// 		}
+	// 	}
+	//
+	// 	return result;
+	// }
 
 	private (IAssemblySymbol assemblySymbol, AssemblyScanConfiguration assemblyDetail, List<INamespaceSymbol> namespaceSymbols )
 		GetNamespaceSymbolsFromAssembly(IAssemblySymbol assemblySymbol, AssemblyScanConfiguration assemblyScanConfiguration)
