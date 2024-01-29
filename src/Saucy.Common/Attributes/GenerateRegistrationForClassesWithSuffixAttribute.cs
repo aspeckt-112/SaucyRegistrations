@@ -2,7 +2,7 @@
 
 namespace Saucy.Common.Attributes
 {
-	[AttributeUsage(AttributeTargets.Assembly)]
+	[AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
 	public class GenerateRegistrationForClassesWithSuffixAttribute : Attribute
 	{
 		public GenerateRegistrationForClassesWithSuffixAttribute(string suffix)

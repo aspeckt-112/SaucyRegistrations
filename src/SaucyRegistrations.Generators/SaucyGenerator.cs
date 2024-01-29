@@ -63,34 +63,29 @@ public class SaucyGenerator : ISourceGenerator
 
 		if (compilationAssembly.ShouldBeIncludedInSourceGeneration())
 		{
-			AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyScanConfiguration(compilationAssembly);
-			assemblyScanConfigurations.Add(compilationAssembly, assemblyScanConfiguration);
+			AddAssemblyScanConfiguration(compilationAssembly, assemblyScanConfigurations);
+		}
+
+		List<IAssemblySymbol> referencedAssemblies = context.Compilation
+		                                                    .SourceModule
+		                                                    .ReferencedAssemblySymbols
+		                                                    .Where(x => x.ShouldBeIncludedInSourceGeneration())
+		                                                    .ToList();
+
+		foreach (IAssemblySymbol assembly in referencedAssemblies)
+		{
+			AddAssemblyScanConfiguration(assembly, assemblyScanConfigurations);
 		}
 		
-		ImmutableArray<IAssemblySymbol> referencedAssemblySymbols = context.Compilation
-		                                                                   .SourceModule.ReferencedAssemblySymbols;
+		// At this point, if there's nothing in the map then there's nothing to generate. So bail out.
+		if (assemblyScanConfigurations.Count == 0)
+		{
+			return null;
+		}
 
 		return new RunConfiguration(generationConfiguration);
-
-		// ImmutableArray<IAssemblySymbol> referencedAssemblySymbols = context.Compilation
-		//                                                                    .SourceModule.ReferencedAssemblySymbols;
-		//
-		// List<IAssemblySymbol> assembliesToScan
-		// 	= referencedAssemblySymbols.Where(x => x.ShouldBeIncludedInSourceGeneration()).ToList();
-		//
-		// foreach (IAssemblySymbol assemblySymbol in assembliesToScan)
-		// {
-		// 	AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyScanConfiguration(assemblySymbol);
-		// 	assemblyScanConfigurations.Add(assemblySymbol, assemblyScanConfiguration);
-		// }
-		//
-		// // At this point, if there's nothing in the map then there's nothing to generate. So bail out.
-		// if (assemblyScanConfigurations.Count == 0)
-		// {
-		// 	diagnostics.Add(Diagnostics.NoAssembliesToScan);
-		// 	return (diagnostics, null);
-		// }
-		//
+		
+		
 		// IEnumerable<(ITypeSymbol, ServiceScope)> allTypeSymbolsInAllAssemblies
 		// 	= GetAllTypeSymbolsInAllAssemblies(assemblyScanConfigurations);
 		//
@@ -99,7 +94,13 @@ public class SaucyGenerator : ISourceGenerator
 		// return (diagnostics, runParameter);
 
 	}
-	
+
+	private void AddAssemblyScanConfiguration(IAssemblySymbol compilationAssembly, Dictionary<IAssemblySymbol, AssemblyScanConfiguration> assemblyScanConfigurations)
+	{
+		AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyScanConfiguration(compilationAssembly);
+		assemblyScanConfigurations.Add(compilationAssembly, assemblyScanConfiguration);
+	}
+
 	private GenerationConfiguration? BuildGenerationConfiguration(IEnumerable<INamespaceSymbol> namespaceSymbols)
 	{
 		// Within each namespace, look for the first class with the GenerateServiceCollectionMethodAttribute attribute.
