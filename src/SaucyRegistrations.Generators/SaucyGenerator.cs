@@ -82,14 +82,9 @@ public class SaucyGenerator : ISourceGenerator
 		Dictionary<ITypeSymbol, ServiceScope> allTypeSymbolsInAllAssemblies
 			= GetAllTypeSymbolsInAllAssemblies(assemblyScanConfigurations);
 
-		return new RunConfiguration(generationConfiguration);
+		var runParameter = new RunConfiguration(generationConfiguration, allTypeSymbolsInAllAssemblies);
 
-		// IEnumerable<(ITypeSymbol, ServiceScope)> allTypeSymbolsInAllAssemblies
-		// 	= GetAllTypeSymbolsInAllAssemblies(assemblyScanConfigurations);
-		//
-		// runParameter.Types.AddRange(allTypeSymbolsInAllAssemblies);
-		//
-		// return (diagnostics, runParameter);
+		return runParameter;
 	}
 
 	private void AddAssemblyScanConfiguration(
@@ -157,28 +152,30 @@ public class SaucyGenerator : ISourceGenerator
 		{
 			IAssemblySymbol? assemblySymbol = assembly.Key;
 			AssemblyScanConfiguration? scanConfiguration = assembly.Value;
+
 			List<INamespaceSymbol> namespaces = GetNamespaceSymbolsFromAssembly(assemblySymbol, scanConfiguration);
-			
+
 			if (namespaces.Count == 0)
 			{
 				continue;
 			}
 
-			foreach (var @namespace in namespaces)
+			foreach (INamespaceSymbol? @namespace in namespaces)
 			{
-				var typeSymbols = GetTypeSymbolsFromNamespace(@namespace, assemblySymbol, scanConfiguration);
-				
-				foreach(var (typeSymbol, serviceScope) in typeSymbols)
+				IEnumerable<(ITypeSymbol, ServiceScope)> typeSymbols = GetTypeSymbolsFromNamespace(
+					@namespace, assemblySymbol, scanConfiguration
+				);
+
+				foreach ((ITypeSymbol typeSymbol, ServiceScope serviceScope) in typeSymbols)
 				{
 					result.Add(typeSymbol, serviceScope);
 				}
 			}
-			
 		}
 
 		return result;
 	}
-	
+
 	private List<INamespaceSymbol> GetNamespaceSymbolsFromAssembly(
 		IAssemblySymbol assemblySymbol,
 		AssemblyScanConfiguration assemblyScanConfiguration
@@ -196,8 +193,8 @@ public class SaucyGenerator : ISourceGenerator
 			string namespaceName = @namespace.ToDisplayString();
 
 			if (excludedNamespaces.Contains(namespaceName)
-			    || (namespaceName.StartsWith("Microsoft.") && !includeMicrosoftNamespaces)
-			    || (namespaceName.StartsWith("System.") && !includeSystemNamespaces))
+			    || (namespaceName.StartsWith("Microsoft") && !includeMicrosoftNamespaces)
+			    || (namespaceName.StartsWith("System") && !includeSystemNamespaces))
 			{
 				continue;
 			}
@@ -226,52 +223,48 @@ public class SaucyGenerator : ISourceGenerator
 			return result;
 		}
 
-		// Check to see if the assembly has a GenerateRegistrationForClassesWithSuffixAttribute attribute. If it does, then only include types that end with the suffix.
+		// Check to see if the assembly has a GenerateRegistrationForClassesWithSuffixAttribute attribute.
+		// If it does, then only include types that end with the suffix.
 		// If it doesn't, then include all types.
-		AttributeData? saucyClassSuffixAttribute
-			= assemblySymbol.GetFirstAttributeWithNameOrNull(nameof(GenerateRegistrationForClassesWithSuffixAttribute));
+		List<string> suffixes = assemblySymbol.GetListOfStringsFromAttributeOnSymbol(
+			nameof(GenerateRegistrationForClassesWithSuffixAttribute),
+			nameof(GenerateRegistrationForClassesWithSuffixAttribute.Suffix)
+		);
 
-		string? suffix = null;
-
-		if (saucyClassSuffixAttribute is not null)
-		{
-			suffix = saucyClassSuffixAttribute.GetParameter<string>(
-				nameof(GenerateRegistrationForClassesWithSuffixAttribute.Suffix)
-			);
-		}
-
-		bool assemblyHasClassSuffix = !string.IsNullOrWhiteSpace(suffix);
+		bool assemblyHasOneOrMoreClassSuffix = suffixes.Count > 0;
 
 		foreach (INamedTypeSymbol namedTypeSymbol in concreteNamedTypeSymbols)
 		{
-			// First, check to see if the type is decorated with the SaucyExcludeClass attribute.
-			// If it is, then just continue to the next type because there's nothing else to do.
-			if (namedTypeSymbol.GetFirstAttributeWithNameOrNull(nameof(SaucyExcludeClass)) is not null)
+			// Should the type be excluded from registration?
+			if (namedTypeSymbol.GetFirstAttributeWithNameOrNull(
+				    nameof(WhenRegisteringWithContainerShouldExcludedAttribute)
+			    ) is not null)
 			{
 				continue;
 			}
 
 			ServiceScope? namedTypeServiceScope = null;
 
-			// Next, check to see if the type is decorated with the SaucyServiceScope attribute.
-			// If it is, then use the value from the attribute. If it's not, then use the default value from the assembly.
 			AttributeData? saucyServiceScopeAttribute
-				= namedTypeSymbol.GetFirstAttributeWithNameOrNull(nameof(SaucyClassScope));
+				= namedTypeSymbol.GetFirstAttributeWithNameOrNull(nameof(WhenRegisteringUseScope));
 
 			if (saucyServiceScopeAttribute is not null)
 			{
-				namedTypeServiceScope = saucyServiceScopeAttribute.GetParameter<ServiceScope>(
-					nameof(SaucyClassScope.ServiceScope)
+				namedTypeServiceScope = saucyServiceScopeAttribute.GetValueForPropertyOfType<ServiceScope>(
+					nameof(WhenRegisteringUseScope.ServiceScope)
 				);
 			}
 
 			ServiceScope serviceScope = namedTypeServiceScope ?? assemblyScanConfiguration.DefaultServiceScope;
 
-			if (assemblyHasClassSuffix)
+			if (assemblyHasOneOrMoreClassSuffix)
 			{
-				if (namedTypeSymbol.Name.EndsWith(suffix!))
+				foreach (string suffix in suffixes)
 				{
-					result.Add((namedTypeSymbol, serviceScope));
+					if (namedTypeSymbol.Name.EndsWith(suffix))
+					{
+						result.Add((namedTypeSymbol, serviceScope));
+					}
 				}
 
 				continue;
@@ -295,69 +288,69 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace {generationConfiguration.Namespace}
 {{
- public static partial class {generationConfiguration.Class}
- {{
-  public static void {generationConfiguration.Method}(IServiceCollection serviceCollection)
-  {{"
+	public static partial class {generationConfiguration.Class}
+	{{
+		public static void {generationConfiguration.Method}(IServiceCollection serviceCollection)
+		{{"
 		);
 
 		sourceBuilder.AppendLine();
 
-		// Dictionary<ServiceScope, string> serviceScopeToMethodNameMap = new()
-		// {
-		// 	{ ServiceScope.Singleton, "serviceCollection.AddSingleton" },
-		// 	{ ServiceScope.Scoped, "serviceCollection.AddScoped" },
-		// 	{ ServiceScope.Transient, "serviceCollection.AddTransient" }
-		// };
-		//
-		// foreach ((ITypeSymbol typeSymbol, ServiceScope typeScope) in runParameter.Types)
-		// {
-		// 	string fullyQualifiedTypeName = typeSymbol.ToDisplayString();
-		//
-		// 	// Check to see if the class has a base type that's not "object". If it does, then also check to see if the base type is abstract.
-		// 	// If it is, also register the concrete type against the base type to support resolving by the base type.
-		// 	INamedTypeSymbol? classBaseType = typeSymbol.BaseType;
-		//
-		// 	bool classHasBaseType = classBaseType is not null && !ReferenceEquals(classBaseType, objectSymbol);
-		//
-		// 	if (classHasBaseType && typeSymbol.BaseType!.IsAbstract)
-		// 	{
-		// 		string fullyQualifiedBaseTypeName = typeSymbol.BaseType.ToDisplayString();
-		//
-		// 		sourceBuilder.AppendLine(
-		// 			$@"			{serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedBaseTypeName}, {fullyQualifiedTypeName}>();"
-		// 		);
-		// 	}
-		//
-		// 	bool classHasInterfaces = typeSymbol.Interfaces.Length > 0;
-		//
-		// 	switch (classHasInterfaces)
-		// 	{
-		// 		// If the class has interfaces, then register the concrete type against each interface to support resolving by
-		// 		// the interface type.
-		// 		case true:
-		// 		{
-		// 			foreach (INamedTypeSymbol @interface in typeSymbol.Interfaces)
-		// 			{
-		// 				string fullyQualifiedInterfaceName = @interface.ToDisplayString();
-		//
-		// 				sourceBuilder.AppendLine(
-		// 					$@"			{serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedInterfaceName}, {fullyQualifiedTypeName}>();"
-		// 				);
-		// 			}
-		//
-		// 			break;
-		// 		}
-		// 		// If the class has no interfaces, and no base type, then just register the concrete type against itself.
-		// 		case false 
-		// 	    when !classHasBaseType:
-		// 			sourceBuilder.AppendLine($@"			{serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedTypeName}>();");
-		// 			break;
-		// 	}
-		// }
+		Dictionary<ServiceScope, string> serviceScopeToMethodNameMap = new()
+		{
+			{ ServiceScope.Singleton, "serviceCollection.AddSingleton" },
+			{ ServiceScope.Scoped, "serviceCollection.AddScoped" },
+			{ ServiceScope.Transient, "serviceCollection.AddTransient" }
+		};
 
-		sourceBuilder.AppendLine(@"		}");
-		sourceBuilder.AppendLine(@"	}");
+		foreach (KeyValuePair<ITypeSymbol, ServiceScope> type in runConfiguration.TypesToRegister)
+		{
+			ITypeSymbol? typeSymbol = type.Key;
+			ServiceScope typeScope = type.Value;
+
+			string fullyQualifiedTypeName = typeSymbol.ToDisplayString();
+
+			INamedTypeSymbol? classBaseType = typeSymbol.BaseType;
+
+			bool classHasBaseType = classBaseType is not null && !ReferenceEquals(classBaseType, objectSymbol);
+
+			if (classHasBaseType && typeSymbol.BaseType!.IsAbstract)
+			{
+				string fullyQualifiedBaseTypeName = typeSymbol.BaseType.ToDisplayString();
+
+				sourceBuilder.AppendLine(
+					$@"            {serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedBaseTypeName}, {fullyQualifiedTypeName}>();"
+				);
+			}
+
+			bool classHasInterfaces = typeSymbol.Interfaces.Length > 0;
+
+			switch (classHasInterfaces)
+			{
+				case true:
+				{
+					foreach (INamedTypeSymbol @interface in typeSymbol.Interfaces)
+					{
+						string fullyQualifiedInterfaceName = @interface.ToDisplayString();
+
+						sourceBuilder.AppendLine(
+							$@"            {serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedInterfaceName}, {fullyQualifiedTypeName}>();"
+						);
+					}
+
+					break;
+				}
+				case false when !classHasBaseType:
+					sourceBuilder.AppendLine(
+						$@"            {serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedTypeName}>();"
+					);
+
+					break;
+			}
+		}
+
+		sourceBuilder.AppendLine(@"        }");
+		sourceBuilder.AppendLine(@"    }");
 		sourceBuilder.AppendLine(@"}");
 
 		return sourceBuilder.ToString();

@@ -38,7 +38,7 @@ public static class SymbolExtensions
 		
 		foreach (AttributeData attribute in attributes)
 		{
-			var value = attribute.GetParameter<string>(parameterName);
+			var value = attribute.GetValueForPropertyOfType<string>(parameterName);
 
 			if (!string.IsNullOrWhiteSpace(value))
 			{

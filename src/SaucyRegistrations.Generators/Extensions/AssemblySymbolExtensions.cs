@@ -22,7 +22,7 @@ public static class AssemblySymbolExtensions
 	{
 		AttributeData saucyTargetAttribute = assemblySymbol.GetFirstAttributeWithName(nameof(IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute));
 
-		return saucyTargetAttribute.GetParameter<ServiceScope>(nameof(IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute.DefaultServiceScope));
+		return saucyTargetAttribute.GetValueForPropertyOfType<ServiceScope>(nameof(IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute.DefaultServiceScope));
 	}
 
 	internal static bool ShouldBeIncludedInSourceGeneration(this ISymbol symbol)

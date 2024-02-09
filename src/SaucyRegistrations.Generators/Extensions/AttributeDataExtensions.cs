@@ -15,7 +15,7 @@ public static class AttributeDataExtensions
 		return (T)attributeData.GetAttributeParameters().First(x => x.Name == propertyName).Value!;
 	}
 
-	internal static T GetParameter<T>(this AttributeData attributeData, string parameterName)
+	internal static T GetValueForPropertyOfType<T>(this AttributeData attributeData, string parameterName)
 	{
 		return (T)attributeData.GetAttributeParameters().First(x => x.Name == parameterName).Value!;
 	}
