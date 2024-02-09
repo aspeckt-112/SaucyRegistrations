@@ -1,15 +1,13 @@
-﻿using System;
-
-namespace Saucy.Common.Attributes
+﻿namespace Saucy.Common.Attributes
 {
-	[AttributeUsage(AttributeTargets.Class)]
-	public class GenerateServiceCollectionMethodAttribute : Attribute
-	{
-		public string MethodName { get; }
+    [System.AttributeUsageAttribute(System.AttributeTargets.Class)]
+    public class GenerateServiceCollectionMethodAttribute : System.Attribute
+    {
+        public string MethodName { get; }
 
-		public GenerateServiceCollectionMethodAttribute(string methodName)
-		{
-			MethodName = methodName;
-		}
-	}
+        public GenerateServiceCollectionMethodAttribute(string methodName)
+        {
+            MethodName = methodName;
+        }
+    }
 }
