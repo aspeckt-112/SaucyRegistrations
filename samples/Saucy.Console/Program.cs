@@ -1,18 +1,14 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Saucy.Common.Attributes;
 
 namespace Saucy.Console;
 
+[GenerateServiceCollectionMethod("AddRegistrations")]
 public static partial class Program
 {
-
 	public static void Main(string[] args)
 	{
-		ServiceCollection serviceCollection = new();
-		AddRegistrations(serviceCollection);
-	}
-
-	private static void AddRegistrations(IServiceCollection serviceCollection)
-	{
-		AddRegistrationsInternal(serviceCollection);
+		IServiceCollection serviceCollection = new ServiceCollection();
+		AddRegistrations_Generated(serviceCollection);
 	}
 }

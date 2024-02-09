@@ -4,9 +4,9 @@ using Saucy.Common.Enums;
 namespace Saucy.Common.Attributes
 {
 	[AttributeUsage(AttributeTargets.Class)]
-	public class SaucyClassScope : Attribute
+	public class WhenRegisteringUseScope : Attribute
 	{
-		public SaucyClassScope(ServiceScope serviceScope)
+		public WhenRegisteringUseScope(ServiceScope serviceScope)
 		{
 			ServiceScope = serviceScope;
 		}

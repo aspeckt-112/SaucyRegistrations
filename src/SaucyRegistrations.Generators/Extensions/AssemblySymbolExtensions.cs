@@ -9,22 +9,22 @@ public static class AssemblySymbolExtensions
 {
 	internal static List<string> GetExcludedNamespaces(this IAssemblySymbol assemblySymbol)
 		=> assemblySymbol.GetListOfStringsFromAttributeOnSymbol(
-			nameof(SaucyExcludeNamespace), nameof(SaucyExcludeNamespace.Namespace)
+			nameof(WhenRegisteringExcludeClassesInNamespaceAttribute), nameof(WhenRegisteringExcludeClassesInNamespaceAttribute.Namespace)
 		);
 
 	internal static bool ShouldIncludeMicrosoftNamespaces(this IAssemblySymbol assemblySymbol)
-		=> assemblySymbol.GetFirstAttributeWithNameOrNull(nameof(SaucyIncludeMicrosoftNamespaces)) is not null;
+		=> assemblySymbol.GetFirstAttributeWithNameOrNull(nameof(WhenRegisteringShouldIncludeMicrosoftNamespaces)) is not null;
 
 	internal static bool ShouldIncludeSystemNamespaces(this IAssemblySymbol assemblySymbol)
-		=> assemblySymbol.GetFirstAttributeWithNameOrNull(nameof(SaucyIncludeSystemNamespaces)) is not null;
+		=> assemblySymbol.GetFirstAttributeWithNameOrNull(nameof(WhenRegisteringShouldIncludeSystemNamespaces)) is not null;
 	
 	internal static ServiceScope GetDefaultServiceScope(this IAssemblySymbol assemblySymbol)
 	{
-		AttributeData saucyTargetAttribute = assemblySymbol.GetFirstAttributeWithName(nameof(IncludeInSourceGeneration));
+		AttributeData saucyTargetAttribute = assemblySymbol.GetFirstAttributeWithName(nameof(IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute));
 
-		return saucyTargetAttribute.GetParameter<ServiceScope>(nameof(IncludeInSourceGeneration.DefaultServiceScope));
+		return saucyTargetAttribute.GetValueForPropertyOfType<ServiceScope>(nameof(IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute.DefaultServiceScope));
 	}
 
-	internal static bool HasSaucyIncludeAttribute(this ISymbol symbol)
-		=> symbol.GetFirstAttributeWithNameOrNull(nameof(IncludeInSourceGeneration)) is not null;
+	internal static bool ShouldBeIncludedInSourceGeneration(this ISymbol symbol)
+		=> symbol.GetFirstAttributeWithNameOrNull(nameof(IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute)) is not null;
 }

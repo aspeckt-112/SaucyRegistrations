@@ -6,16 +6,21 @@ namespace SaucyRegistrations.Generators.Extensions;
 
 public static class SymbolExtensions
 {
-	internal static AttributeData GetFirstAttributeWithName(this ISymbol symbol, string attributeName)
+	internal static AttributeData? GetFirstAttributeOfTypeOrNull<T>(this ISymbol symbol)
 	{
-		return symbol.GetAttributes().First(x => x.AttributeClass?.Name == attributeName);
+		return symbol.GetAttributes().FirstOrDefault(x => x.AttributeClass?.Name == typeof(T).Name);
 	}
-
+	
 	internal static AttributeData? GetFirstAttributeWithNameOrNull(this ISymbol symbol, string attributeName)
 	{
 		return symbol.GetAttributes().FirstOrDefault(x => x.AttributeClass?.Name == attributeName);
 	}
-
+	
+	internal static AttributeData GetFirstAttributeWithName(this ISymbol symbol, string attributeName)
+	{
+		return symbol.GetAttributes().First(x => x.AttributeClass?.Name == attributeName);
+	}
+	
 	internal static List<string> GetListOfStringsFromAttributeOnSymbol(
 		this ISymbol symbol,
 		string attributeName,
@@ -33,7 +38,7 @@ public static class SymbolExtensions
 		
 		foreach (AttributeData attribute in attributes)
 		{
-			var value = attribute.GetParameter<string>(parameterName);
+			var value = attribute.GetValueForPropertyOfType<string>(parameterName);
 
 			if (!string.IsNullOrWhiteSpace(value))
 			{

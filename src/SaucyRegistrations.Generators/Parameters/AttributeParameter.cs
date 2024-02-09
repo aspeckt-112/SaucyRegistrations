@@ -1,6 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 
-namespace SaucyRegistrations.Generators;
+namespace SaucyRegistrations.Generators.Parameters;
 
 public class AttributeParameter(string name, ITypeSymbol type, object? value)
 {

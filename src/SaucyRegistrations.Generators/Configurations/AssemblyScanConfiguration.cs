@@ -1,11 +1,12 @@
 using System.Collections.Generic;
+using System.ComponentModel;
 using Saucy.Common.Enums;
 
-namespace SaucyRegistrations.Generators;
+namespace SaucyRegistrations.Generators.Configurations;
 
 public class AssemblyScanConfiguration
 {
-	public HashSet<string> ExcludedNamespaces { get; private set; } = new();
+	public List<string> ExcludedNamespaces { get; private set; } = new();
 
 	public bool IncludeMicrosoftNamespaces { get; set; }
 
