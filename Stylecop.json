@@ -2,6 +2,11 @@
   "settings": {
     "orderingRules": {
       "usingDirectivesPlacement": "outsideNamespace"
+    },
+    "documentationRules": {
+      "CompanyHeader": {
+        "Enabled": false
+      }
     }
   }
 }
