@@ -1,13 +1,18 @@
-﻿namespace Saucy.Common.Attributes
+﻿using System;
+
+namespace Saucy.Common.Attributes
 {
     /// <summary>
     /// The GenerateRegistrationForClassesWithSuffixAttribute is used to generate registrations for classes with a
     /// specific suffix.
     /// </summary>
-    /// <remarks>Apply this attribute to an assembly to include classes with the suffix that you specify.</remarks>
+    /// <remarks>
+    /// Apply this attribute to an assembly to include classes with the suffix that you specify. You can apply
+    /// multiple instances of this attribute.
+    /// </remarks>
     /// <usage>[assembly: GenerateRegistrationForClassesWithSuffix("YOUR_SUFFIX")]</usage>
-    [System.AttributeUsageAttribute(System.AttributeTargets.Assembly, AllowMultiple = true)]
-    public class GenerateRegistrationForClassesWithSuffixAttribute : System.Attribute
+    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
+    public class GenerateRegistrationForClassesWithSuffixAttribute : Attribute
     {
         /// <summary>Initializes a new instance of the <see cref="GenerateRegistrationForClassesWithSuffixAttribute" /> class.</summary>
         /// <param name="suffix">The suffix of the class, or classes, that you want to register.</param>
