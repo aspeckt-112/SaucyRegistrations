@@ -9,6 +9,7 @@ using Saucy.Common.Attributes;
 using Saucy.Common.Enums;
 
 using SaucyRegistrations.Generators.Builders;
+using SaucyRegistrations.Generators.Collections;
 using SaucyRegistrations.Generators.Configurations;
 using SaucyRegistrations.Generators.Extensions;
 
@@ -50,7 +51,7 @@ public class SaucyGenerator : ISourceGenerator
     {
         IAssemblySymbol compilationAssembly = context.Compilation.Assembly;
 
-        var compilationAssemblyNamespaces = compilationAssembly.GlobalNamespace.GetListOfNamespaces().ToList();
+        var compilationAssemblyNamespaces = compilationAssembly.GlobalNamespace.GetNamespaces().ToList();
 
         if (compilationAssemblyNamespaces.Count == 0)
         {
@@ -64,37 +65,38 @@ public class SaucyGenerator : ISourceGenerator
             throw new InvalidOperationException("No generation configuration found. Have you applied the [GenerateServiceCollectionMethod] attribute to a class?");
         }
 
-        Dictionary<IAssemblySymbol, AssemblyScanConfiguration> assemblyScanConfigurations = new();
+        var assemblyCollection = new Assemblies();
 
         if (compilationAssembly.ShouldBeIncludedInSourceGeneration())
         {
-            AddAssemblyScanConfiguration(compilationAssembly, assemblyScanConfigurations);
+            AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyScanConfiguration(compilationAssembly);
+            assemblyCollection.Add(compilationAssembly).WithConfiguration(assemblyScanConfiguration);
         }
 
-        List<IAssemblySymbol> referencedAssemblies = context.Compilation.SourceModule.ReferencedAssemblySymbols.Where(x => x.ShouldBeIncludedInSourceGeneration()).ToList();
+        List<IAssemblySymbol> referencedAssemblies = context
+                                                     .Compilation
+                                                     .SourceModule
+                                                     .ReferencedAssemblySymbols
+                                                     .Where(x => x.ShouldBeIncludedInSourceGeneration())
+                                                     .ToList();
 
         foreach (IAssemblySymbol assembly in referencedAssemblies)
         {
-            AddAssemblyScanConfiguration(assembly, assemblyScanConfigurations);
+            AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyScanConfiguration(assembly);
+            assemblyCollection.Add(assembly).WithConfiguration(assemblyScanConfiguration);
         }
 
         // At this point, if there's nothing in the map then there's nothing to generate. So bail out.
-        if (assemblyScanConfigurations.Count == 0)
+        if (assemblyCollection.IsEmpty)
         {
             return null;
         }
 
-        Dictionary<ITypeSymbol, ServiceScope> allTypeSymbolsInAllAssemblies = GetAllTypeSymbolsInAllAssemblies(assemblyScanConfigurations);
+        TypeSymbols allTypeSymbolsInAllAssemblies = GetAllTypeSymbolsInAllAssemblies(assemblyCollection);
 
         RunConfiguration runParameter = new(generationConfiguration, allTypeSymbolsInAllAssemblies);
 
         return runParameter;
-    }
-
-    private void AddAssemblyScanConfiguration(IAssemblySymbol compilationAssembly, Dictionary<IAssemblySymbol, AssemblyScanConfiguration> assemblyScanConfigurations)
-    {
-        AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyScanConfiguration(compilationAssembly);
-        assemblyScanConfigurations.Add(compilationAssembly, assemblyScanConfiguration);
     }
 
     private AssemblyScanConfiguration BuildAssemblyScanConfiguration(IAssemblySymbol assemblySymbol)
@@ -115,16 +117,16 @@ public class SaucyGenerator : ISourceGenerator
         return result;
     }
 
-    private Dictionary<ITypeSymbol, ServiceScope> GetAllTypeSymbolsInAllAssemblies(Dictionary<IAssemblySymbol, AssemblyScanConfiguration> assemblies)
+    private TypeSymbols GetAllTypeSymbolsInAllAssemblies(Assemblies assemblies)
     {
-        Dictionary<ITypeSymbol, ServiceScope> result = new();
+        TypeSymbols result = new();
 
-        foreach (KeyValuePair<IAssemblySymbol, AssemblyScanConfiguration> assembly in assemblies)
+        foreach (var assembly in assemblies)
         {
             IAssemblySymbol? assemblySymbol = assembly.Key;
             AssemblyScanConfiguration? scanConfiguration = assembly.Value;
 
-            List<INamespaceSymbol> namespaces = GetNamespaceSymbolsFromAssembly(assemblySymbol, scanConfiguration);
+            List<INamespaceSymbol> namespaces = GetNamespacesFromAssembly(assemblySymbol, scanConfiguration);
 
             if (namespaces.Count == 0)
             {
@@ -145,16 +147,16 @@ public class SaucyGenerator : ISourceGenerator
         return result;
     }
 
-    private List<INamespaceSymbol> GetNamespaceSymbolsFromAssembly(IAssemblySymbol assemblySymbol, AssemblyScanConfiguration assemblyScanConfiguration)
+    private List<INamespaceSymbol> GetNamespacesFromAssembly(IAssemblySymbol assemblySymbol, AssemblyScanConfiguration assemblyScanConfiguration)
     {
         List<INamespaceSymbol> namespaceSymbols = [];
 
         INamespaceSymbol globalNamespace = assemblySymbol.GlobalNamespace;
         List<string> excludedNamespaces = assemblyScanConfiguration.ExcludedNamespaces;
-        bool includeMicrosoftNamespaces = assemblyScanConfiguration.IncludeMicrosoftNamespaces;
-        bool includeSystemNamespaces = assemblyScanConfiguration.IncludeSystemNamespaces;
+        var includeMicrosoftNamespaces = assemblyScanConfiguration.IncludeMicrosoftNamespaces;
+        var includeSystemNamespaces = assemblyScanConfiguration.IncludeSystemNamespaces;
 
-        foreach (INamespaceSymbol @namespace in globalNamespace.GetListOfNamespaces())
+        foreach (INamespaceSymbol @namespace in globalNamespace.GetNamespaces())
         {
             string namespaceName = @namespace.ToDisplayString();
 
