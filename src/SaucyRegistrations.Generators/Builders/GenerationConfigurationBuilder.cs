@@ -24,7 +24,7 @@ internal static class GenerationConfigurationBuilder
     /// <returns>The generation configuration if found; otherwise, null.</returns>
     internal static GenerationConfiguration? Build(List<INamespaceSymbol> namespaces)
     {
-        // Within each namespace, look for the first class with the GenerateServiceCollectionMethodAttribute attribute.
+        // Within each namespace, look for the first class with the ServiceCollectionMethod attribute.
         // If it's found, then use the namespace and class name to build the generation configuration.
         // If it's not found, then return null.
         foreach (INamespaceSymbol? @namespace in namespaces)
@@ -33,9 +33,9 @@ internal static class GenerationConfigurationBuilder
             {
                 foreach (AttributeData? attribute in namedTypeSymbol.GetAttributes())
                 {
-                    if (attribute.Is<GenerateServiceCollectionMethodAttribute>())
+                    if (attribute.Is<ServiceCollectionMethod>())
                     {
-                        var methodName = attribute.GetValueOfPropertyWithName<string>(nameof(GenerateServiceCollectionMethodAttribute.MethodName));
+                        var methodName = attribute.GetValueOfPropertyWithName<string>(nameof(ServiceCollectionMethod.MethodName));
 
                         return new GenerationConfiguration(@namespace.ToDisplayString(), namedTypeSymbol.Name, methodName);
                     }

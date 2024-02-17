@@ -122,7 +122,7 @@ public class SaucyGenerator : ISourceGenerator
         result.IncludeSystemNamespaces = assembly.ShouldIncludeSystemNamespaces();
         result.DefaultServiceScope = (ServiceScope)defaultServiceScope!;
 
-        var classSuffixAttributes = assembly.GetAttributesOfType<GenerateRegistrationForClassesWithSuffixAttribute>();
+        var classSuffixAttributes = assembly.GetAttributesOfType<SuffixRegistration>();
 
         if (classSuffixAttributes.Count > 0)
         {
@@ -130,7 +130,7 @@ public class SaucyGenerator : ISourceGenerator
 
             foreach (AttributeData attribute in classSuffixAttributes)
             {
-                var classSuffix = attribute.GetValueForPropertyOfType<string>(nameof(GenerateRegistrationForClassesWithSuffixAttribute.Suffix));
+                var classSuffix = attribute.GetValueForPropertyOfType<string>(nameof(SuffixRegistration.Suffix));
 
                 if (!string.IsNullOrWhiteSpace(classSuffix))
                 {
@@ -217,18 +217,18 @@ public class SaucyGenerator : ISourceGenerator
 
         foreach (INamedTypeSymbol typeSymbol in concreteTypes)
         {
-            if (typeSymbol.HasAttributeOfType<WhenRegisteringWithContainerShouldExcludedAttribute>())
+            if (typeSymbol.HasAttributeOfType<ExcludeRegistration>())
             {
                 continue;
             }
 
             ServiceScope? typeServiceScope = null;
 
-            AttributeData? serviceScopeAttribute = typeSymbol.GetFirstAttributeOfType<WhenRegisteringUseScopeAttribute>();
+            AttributeData? serviceScopeAttribute = typeSymbol.GetFirstAttributeOfType<UseScope>();
 
             if (serviceScopeAttribute is not null)
             {
-                typeServiceScope = serviceScopeAttribute.GetValueForPropertyOfType<ServiceScope>(nameof(WhenRegisteringUseScopeAttribute.ServiceScope));
+                typeServiceScope = serviceScopeAttribute.GetValueForPropertyOfType<ServiceScope>(nameof(UseScope.ServiceScope));
             }
 
             ServiceScope serviceScope = typeServiceScope ?? assemblyScanConfiguration.DefaultServiceScope;

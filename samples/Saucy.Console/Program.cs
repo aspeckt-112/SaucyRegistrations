@@ -4,7 +4,7 @@ using Saucy.Common.Attributes;
 
 namespace Saucy.Console;
 
-[GenerateServiceCollectionMethod("AddRegistrations")]
+[ServiceCollectionMethod("AddRegistrations")]
 public static partial class Program
 {
     public static void Main(string[] args)

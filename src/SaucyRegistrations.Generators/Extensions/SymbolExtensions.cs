@@ -23,7 +23,7 @@ internal static class SymbolExtensions
     /// <seealso cref="ServiceScope" />
     internal static bool ShouldBeIncludedInSourceGeneration(this ISymbol symbol, out ServiceScope? defaultServiceScope)
     {
-        var attribute = symbol.GetFirstAttributeOfType<IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute>();
+        var attribute = symbol.GetFirstAttributeOfType<DefaultScopeRegistration>();
 
         if (attribute is null)
         {
@@ -31,7 +31,7 @@ internal static class SymbolExtensions
             return false;
         }
 
-        var serviceScope = attribute.GetValueForPropertyOfType<ServiceScope>(nameof(IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute.DefaultServiceScope));
+        var serviceScope = attribute.GetValueForPropertyOfType<ServiceScope>(nameof(DefaultScopeRegistration.DefaultServiceScope));
 
         defaultServiceScope = serviceScope;
 

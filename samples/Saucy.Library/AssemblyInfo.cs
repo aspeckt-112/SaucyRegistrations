@@ -1,6 +1,6 @@
 using Saucy.Common.Attributes;
 using Saucy.Common.Enums;
 
-[assembly: IncludeInSourceGenerationRegistrationWithDefaultServiceScope(ServiceScope.Transient)]
-[assembly: GenerateRegistrationForClassesWithSuffix("Repository")]
-[assembly: GenerateRegistrationForClassesWithSuffix("Helper")]
+[assembly: DefaultScopeRegistration(ServiceScope.Transient)]
+[assembly: SuffixRegistration("Repository")]
+[assembly: SuffixRegistration("Helper")]
