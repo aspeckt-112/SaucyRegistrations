@@ -4,6 +4,8 @@ using Microsoft.CodeAnalysis;
 
 using Saucy.Common.Enums;
 
+using SaucyRegistrations.Generators.Collections;
+
 namespace SaucyRegistrations.Generators.Configurations;
 
 /// <summary>
@@ -11,7 +13,7 @@ namespace SaucyRegistrations.Generators.Configurations;
 /// </summary>
 /// <param name="generationConfiguration">An instance of the <see cref="GenerationConfiguration" /> class.</param>
 /// <param name="typesToRegister">A dictionary of types to register and their service scope.</param>
-public class RunConfiguration(GenerationConfiguration generationConfiguration, Dictionary<ITypeSymbol, ServiceScope> typesToRegister)
+public class RunConfiguration(GenerationConfiguration generationConfiguration, TypeSymbols typesToRegister)
 {
     /// <summary>
     /// Gets the generation configuration.
@@ -21,5 +23,5 @@ public class RunConfiguration(GenerationConfiguration generationConfiguration, D
     /// <summary>
     /// Gets the types to register and their service scope.
     /// </summary>
-    public Dictionary<ITypeSymbol, ServiceScope> TypesToRegister { get; } = typesToRegister;
+    public TypeSymbols TypesToRegister { get; } = typesToRegister;
 }

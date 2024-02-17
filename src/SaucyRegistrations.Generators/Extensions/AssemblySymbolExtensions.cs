@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 using Microsoft.CodeAnalysis;
 
@@ -16,29 +17,35 @@ internal static class AssemblySymbolExtensions
     /// <summary>
     /// Gets the namespaces to exclude from the registration when scanning the assembly.
     /// </summary>
-    /// <param name="assemblySymbol">The <see cref="IAssemblySymbol" /> to get the excluded namespaces from.</param>
+    /// <param name="assembly">The <see cref="IAssemblySymbol" /> to get the excluded namespaces from.</param>
     /// <returns>A <see cref="List{T}" /> of <see cref="string" />.</returns>
-    internal static List<string> GetExcludedNamespaces(this IAssemblySymbol assemblySymbol)
+    internal static List<string> GetExcludedNamespaces(this IAssemblySymbol assembly)
     {
-        return assemblySymbol.GetListOfStringsFromAttributeOnSymbol(
-            nameof(WhenRegisteringExcludeClassesInNamespaceAttribute), nameof(WhenRegisteringExcludeClassesInNamespaceAttribute.Namespace)
-        );
+        var result = new List<string>();
+
+        var attributes = assembly.GetAttributesOfType<WhenRegisteringExcludeClassesInNamespaceAttribute>();
+
+        if (!attributes.Any())
+        {
+            return result;
+        }
+
+        foreach (AttributeData attribute in attributes)
+        {
+            var excludedNamespace = attribute.GetValueForPropertyOfType<string>(nameof(WhenRegisteringExcludeClassesInNamespaceAttribute.Namespace));
+            result.Add(excludedNamespace);
+        }
+
+        return result;
     }
 
-    internal static bool ShouldIncludeMicrosoftNamespaces(this IAssemblySymbol assemblySymbol)
+    internal static bool ShouldIncludeMicrosoftNamespaces(this IAssemblySymbol assembly)
     {
-        return assemblySymbol.GetFirstAttributeWithNameOrNull(nameof(WhenRegisteringShouldIncludeMicrosoftNamespaces)) is not null;
+        return assembly.HasAttributeOfType<WhenRegisteringShouldIncludeMicrosoftNamespacesAttribute>();
     }
 
-    internal static bool ShouldIncludeSystemNamespaces(this IAssemblySymbol assemblySymbol)
+    internal static bool ShouldIncludeSystemNamespaces(this IAssemblySymbol assembly)
     {
-        return assemblySymbol.GetFirstAttributeWithNameOrNull(nameof(WhenRegisteringShouldIncludeSystemNamespaces)) is not null;
-    }
-
-    internal static ServiceScope GetDefaultServiceScope(this IAssemblySymbol assemblySymbol)
-    {
-        AttributeData saucyTargetAttribute = assemblySymbol.GetFirstAttributeWithName(nameof(IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute));
-
-        return saucyTargetAttribute.GetValueForPropertyOfType<ServiceScope>(nameof(IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute.DefaultServiceScope));
+        return assembly.HasAttributeOfType<WhenRegisteringShouldIncludeSystemNamespacesAttribute>();
     }
 }

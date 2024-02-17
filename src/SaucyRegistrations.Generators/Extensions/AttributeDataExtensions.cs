@@ -29,9 +29,9 @@ public static class AttributeDataExtensions
         return (T)attributeData.GetAttributeParameters().First(x => x.Name == propertyName).Value!;
     }
 
-    internal static T GetValueForPropertyOfType<T>(this AttributeData attributeData, string parameterName)
+    internal static T GetValueForPropertyOfType<T>(this AttributeData attributeData, string propertyName)
     {
-        return (T)attributeData.GetAttributeParameters().First(x => x.Name == parameterName).Value!;
+        return (T)attributeData.GetAttributeParameters().First(x => x.Name == propertyName).Value!;
     }
 
     private static List<AttributeParameter> GetAttributeParameters(this AttributeData attributeData)
@@ -51,12 +51,9 @@ public static class AttributeDataExtensions
             attributeParameters.Add(
                 new AttributeParameter(
                     parameterName,
-                    constructorParameters[i].Type,
-                    namedArgument.Kind switch
-                    {
-                        TypedConstantKind.Array => namedArgument.Values,
-                        _ => namedArgument.Value
-                    }));
+                    constructorParameters[i].Type, namedArgument.Kind == TypedConstantKind.Array
+                        ? namedArgument.Values
+                        : namedArgument.Value));
         }
 
         return attributeParameters;

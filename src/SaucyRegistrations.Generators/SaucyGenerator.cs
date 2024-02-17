@@ -13,6 +13,8 @@ using SaucyRegistrations.Generators.Collections;
 using SaucyRegistrations.Generators.Configurations;
 using SaucyRegistrations.Generators.Extensions;
 
+using Type = SaucyRegistrations.Generators.Models.Type;
+
 namespace SaucyRegistrations.Generators;
 
 /// <summary>
@@ -49,7 +51,9 @@ public class SaucyGenerator : ISourceGenerator
 
     private RunConfiguration? BuildRunConfiguration(GeneratorExecutionContext context)
     {
-        IAssemblySymbol compilationAssembly = context.Compilation.Assembly;
+        var compilation = context.Compilation;
+
+        IAssemblySymbol compilationAssembly = compilation.Assembly;
 
         var compilationAssemblyNamespaces = compilationAssembly.GlobalNamespace.GetNamespaces().ToList();
 
@@ -67,23 +71,27 @@ public class SaucyGenerator : ISourceGenerator
 
         var assemblyCollection = new Assemblies();
 
-        if (compilationAssembly.ShouldBeIncludedInSourceGeneration())
+        // I think I hate how the service scope is being passed around here.
+        if (compilationAssembly.ShouldBeIncludedInSourceGeneration(out ServiceScope? defaultServiceScope))
         {
-            AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyScanConfiguration(compilationAssembly);
+            AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyScanConfiguration(compilationAssembly, defaultServiceScope!);
             assemblyCollection.Add(compilationAssembly).WithConfiguration(assemblyScanConfiguration);
         }
 
-        List<IAssemblySymbol> referencedAssemblies = context
-                                                     .Compilation
-                                                     .SourceModule
-                                                     .ReferencedAssemblySymbols
-                                                     .Where(x => x.ShouldBeIncludedInSourceGeneration())
-                                                     .ToList();
+        List<(IAssemblySymbol? assembly, ServiceScope? serviceScope)> referencedAssemblies = context
+                                                                                             .Compilation
+                                                                                             .SourceModule
+                                                                                             .ReferencedAssemblySymbols
+                                                                                             .Select(a => a.ShouldBeIncludedInSourceGeneration(out ServiceScope? serviceScope)
+                                                                                                         ? (a, serviceScope)
+                                                                                                         : (null, null))
+                                                                                             .Where(x => x.Item1 is not null)
+                                                                                             .ToList();
 
-        foreach (IAssemblySymbol assembly in referencedAssemblies)
+        foreach ((IAssemblySymbol? assembly, ServiceScope? serviceScope) in referencedAssemblies)
         {
-            AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyScanConfiguration(assembly);
-            assemblyCollection.Add(assembly).WithConfiguration(assemblyScanConfiguration);
+            AssemblyScanConfiguration assemblyScanConfiguration = BuildAssemblyScanConfiguration(assembly!, serviceScope!);
+            assemblyCollection.Add(assembly!).WithConfiguration(assemblyScanConfiguration);
         }
 
         // At this point, if there's nothing in the map then there's nothing to generate. So bail out.
@@ -92,27 +100,46 @@ public class SaucyGenerator : ISourceGenerator
             return null;
         }
 
-        TypeSymbols allTypeSymbolsInAllAssemblies = GetAllTypeSymbolsInAllAssemblies(assemblyCollection);
+        TypeSymbols allTypesInAllAssemblies = GetAllTypeSymbolsInAllAssemblies(assemblyCollection);
 
-        RunConfiguration runParameter = new(generationConfiguration, allTypeSymbolsInAllAssemblies);
+        RunConfiguration runParameter = new(generationConfiguration, allTypesInAllAssemblies);
 
         return runParameter;
     }
 
-    private AssemblyScanConfiguration BuildAssemblyScanConfiguration(IAssemblySymbol assemblySymbol)
+    private AssemblyScanConfiguration BuildAssemblyScanConfiguration(IAssemblySymbol assembly, ServiceScope? defaultServiceScope)
     {
         AssemblyScanConfiguration result = new();
 
-        List<string> excludedNamespaces = assemblySymbol.GetExcludedNamespaces();
+        List<string> excludedNamespaces = assembly.GetExcludedNamespaces();
 
         if (excludedNamespaces.Count > 0)
         {
             result.ExcludedNamespaces.AddRange(excludedNamespaces);
         }
 
-        result.IncludeMicrosoftNamespaces = assemblySymbol.ShouldIncludeMicrosoftNamespaces();
-        result.IncludeSystemNamespaces = assemblySymbol.ShouldIncludeSystemNamespaces();
-        result.DefaultServiceScope = assemblySymbol.GetDefaultServiceScope();
+        result.IncludeMicrosoftNamespaces = assembly.ShouldIncludeMicrosoftNamespaces();
+        result.IncludeSystemNamespaces = assembly.ShouldIncludeSystemNamespaces();
+        result.DefaultServiceScope = (ServiceScope)defaultServiceScope!;
+
+        var classSuffixAttributes = assembly.GetAttributesOfType<GenerateRegistrationForClassesWithSuffixAttribute>();
+
+        if (classSuffixAttributes.Count > 0)
+        {
+            List<string> classSuffixes = new();
+
+            foreach (AttributeData attribute in classSuffixAttributes)
+            {
+                var classSuffix = attribute.GetValueForPropertyOfType<string>(nameof(GenerateRegistrationForClassesWithSuffixAttribute.Suffix));
+
+                if (!string.IsNullOrWhiteSpace(classSuffix))
+                {
+                    classSuffixes.Add(classSuffix);
+                }
+            }
+
+            result.ClassSuffixes.AddRange(classSuffixes);
+        }
 
         return result;
     }
@@ -121,12 +148,12 @@ public class SaucyGenerator : ISourceGenerator
     {
         TypeSymbols result = new();
 
-        foreach (var assembly in assemblies)
+        foreach (var assemblyMap in assemblies)
         {
-            IAssemblySymbol? assemblySymbol = assembly.Key;
-            AssemblyScanConfiguration? scanConfiguration = assembly.Value;
+            IAssemblySymbol? assembly = assemblyMap.Key;
+            AssemblyScanConfiguration? scanConfiguration = assemblyMap.Value;
 
-            List<INamespaceSymbol> namespaces = GetNamespacesFromAssembly(assemblySymbol, scanConfiguration);
+            Namespaces namespaces = GetNamespacesFromAssembly(assembly, scanConfiguration);
 
             if (namespaces.Count == 0)
             {
@@ -135,11 +162,11 @@ public class SaucyGenerator : ISourceGenerator
 
             foreach (INamespaceSymbol? @namespace in namespaces)
             {
-                IEnumerable<(ITypeSymbol, ServiceScope)> typeSymbols = GetTypeSymbolsFromNamespace(@namespace, assemblySymbol, scanConfiguration);
+                var types = GetTypesFromNamespace(@namespace!, scanConfiguration!);
 
-                foreach ((ITypeSymbol typeSymbol, ServiceScope serviceScope) in typeSymbols)
+                foreach (var type in types)
                 {
-                    result.Add(typeSymbol, serviceScope);
+                    result.Add(type);
                 }
             }
         }
@@ -147,9 +174,9 @@ public class SaucyGenerator : ISourceGenerator
         return result;
     }
 
-    private List<INamespaceSymbol> GetNamespacesFromAssembly(IAssemblySymbol assemblySymbol, AssemblyScanConfiguration assemblyScanConfiguration)
+    private Namespaces GetNamespacesFromAssembly(IAssemblySymbol assemblySymbol, AssemblyScanConfiguration assemblyScanConfiguration)
     {
-        List<INamespaceSymbol> namespaceSymbols = [];
+        Namespaces namespaces = new();
 
         INamespaceSymbol globalNamespace = assemblySymbol.GlobalNamespace;
         List<string> excludedNamespaces = assemblyScanConfiguration.ExcludedNamespaces;
@@ -158,7 +185,7 @@ public class SaucyGenerator : ISourceGenerator
 
         foreach (INamespaceSymbol @namespace in globalNamespace.GetNamespaces())
         {
-            string namespaceName = @namespace.ToDisplayString();
+            var namespaceName = @namespace.ToDisplayString();
 
             if (excludedNamespaces.Contains(namespaceName)
                 || (namespaceName.StartsWith("Microsoft") && !includeMicrosoftNamespaces)
@@ -167,68 +194,67 @@ public class SaucyGenerator : ISourceGenerator
                 continue;
             }
 
-            namespaceSymbols.Add(@namespace);
+            namespaces.Add(@namespace);
         }
 
-        return namespaceSymbols;
+        return namespaces;
     }
 
-    private IEnumerable<(ITypeSymbol, ServiceScope)> GetTypeSymbolsFromNamespace(
-        INamespaceSymbol namespaceSymbol,
-        IAssemblySymbol assemblySymbol,
+    private TypeSymbols GetTypesFromNamespace(
+        INamespaceSymbol @namespace,
         AssemblyScanConfiguration assemblyScanConfiguration)
     {
-        List<(ITypeSymbol, ServiceScope)> result = [];
+        TypeSymbols result = new();
 
-        List<INamedTypeSymbol> concreteNamedTypeSymbols = namespaceSymbol.GetTypeMembers().Where(x => !x.IsAbstract).Where(x => !x.IsStatic).ToList();
+        List<INamedTypeSymbol> concreteTypes = @namespace.GetConcreteTypes();
 
-        if (concreteNamedTypeSymbols.Count == 0)
+        if (concreteTypes.Count == 0)
         {
             return result;
         }
 
-        // Check to see if the assembly has a GenerateRegistrationForClassesWithSuffixAttribute attribute.
-        // If it does, then only include types that end with the suffix.
-        // If it doesn't, then include all types.
-        List<string> suffixes = assemblySymbol.GetListOfStringsFromAttributeOnSymbol(
-            nameof(GenerateRegistrationForClassesWithSuffixAttribute),
-            nameof(GenerateRegistrationForClassesWithSuffixAttribute.Suffix));
+        var assemblyHasOneOrMoreClassSuffix = assemblyScanConfiguration.ClassSuffixes.Count > 0;
 
-        bool assemblyHasOneOrMoreClassSuffix = suffixes.Count > 0;
-
-        foreach (INamedTypeSymbol namedTypeSymbol in concreteNamedTypeSymbols)
+        foreach (INamedTypeSymbol typeSymbol in concreteTypes)
         {
-            // Should the type be excluded from registration?
-            if (namedTypeSymbol.GetFirstAttributeWithNameOrNull(nameof(WhenRegisteringWithContainerShouldExcludedAttribute)) is not null)
+            if (typeSymbol.HasAttributeOfType<WhenRegisteringWithContainerShouldExcludedAttribute>())
             {
                 continue;
             }
 
-            ServiceScope? namedTypeServiceScope = null;
+            ServiceScope? typeServiceScope = null;
 
-            AttributeData? saucyServiceScopeAttribute = namedTypeSymbol.GetFirstAttributeWithNameOrNull(nameof(WhenRegisteringUseScope));
+            AttributeData? serviceScopeAttribute = typeSymbol.GetFirstAttributeOfType<WhenRegisteringUseScopeAttribute>();
 
-            if (saucyServiceScopeAttribute is not null)
+            if (serviceScopeAttribute is not null)
             {
-                namedTypeServiceScope = saucyServiceScopeAttribute.GetValueForPropertyOfType<ServiceScope>(nameof(WhenRegisteringUseScope.ServiceScope));
+                typeServiceScope = serviceScopeAttribute.GetValueForPropertyOfType<ServiceScope>(nameof(WhenRegisteringUseScopeAttribute.ServiceScope));
             }
 
-            ServiceScope serviceScope = namedTypeServiceScope ?? assemblyScanConfiguration.DefaultServiceScope;
+            ServiceScope serviceScope = typeServiceScope ?? assemblyScanConfiguration.DefaultServiceScope;
 
             if (assemblyHasOneOrMoreClassSuffix)
             {
-                foreach (string suffix in suffixes)
+                foreach (var suffix in assemblyScanConfiguration.ClassSuffixes)
                 {
-                    if (namedTypeSymbol.Name.EndsWith(suffix))
+                    if (typeSymbol.Name.EndsWith(suffix))
                     {
-                        result.Add((namedTypeSymbol, serviceScope));
+                        result.Add(new Type
+                        {
+                            ServiceScope = serviceScope,
+                            Symbol = typeSymbol,
+                        });
                     }
                 }
 
                 continue;
             }
 
-            result.Add((namedTypeSymbol, serviceScope));
+            result.Add(new Type
+            {
+                ServiceScope = serviceScope,
+                Symbol = typeSymbol,
+            });
         }
 
         return result;
@@ -260,10 +286,10 @@ namespace {generationConfiguration.Namespace}
             { ServiceScope.Transient, "serviceCollection.AddTransient" }
         };
 
-        foreach (KeyValuePair<ITypeSymbol, ServiceScope> type in runConfiguration.TypesToRegister)
+        foreach (var type in runConfiguration.TypesToRegister)
         {
-            ITypeSymbol? typeSymbol = type.Key;
-            ServiceScope typeScope = type.Value;
+            ITypeSymbol? typeSymbol = type.Symbol;
+            ServiceScope typeScope = type.ServiceScope;
 
             string fullyQualifiedTypeName = typeSymbol.ToDisplayString();
 

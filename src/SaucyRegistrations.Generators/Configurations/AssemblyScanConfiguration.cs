@@ -29,4 +29,6 @@ public class AssemblyScanConfiguration
     /// Gets or sets the default service scope.
     /// </summary>
     public ServiceScope DefaultServiceScope { get; set; }
+
+    public List<string> ClassSuffixes { get; private set; } = new();
 }

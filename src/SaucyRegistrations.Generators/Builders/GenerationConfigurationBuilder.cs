@@ -37,7 +37,7 @@ internal static class GenerationConfigurationBuilder
                     {
                         var methodName = attribute.GetValueOfPropertyWithName<string>(nameof(GenerateServiceCollectionMethodAttribute.MethodName));
 
-                        return new GenerationConfiguration(@namespace.ToDisplayString(), namedTypeSymbol.Name, $"{methodName}_Generated");
+                        return new GenerationConfiguration(@namespace.ToDisplayString(), namedTypeSymbol.Name, methodName);
                     }
                 }
             }

@@ -8,7 +8,7 @@ namespace Saucy.Common.Attributes
     /// </summary>
     /// <remarks>Apply this attribute to an assembly to exclude classes in the specified namespace from being registered.</remarks>
     /// <usage>[assembly: WhenRegisteringExcludeClassesInNamespace("YOUR_NAMESPACE")]</usage>
-    [AttributeUsage(AttributeTargets.Assembly)]
+    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
     public class WhenRegisteringExcludeClassesInNamespaceAttribute : Attribute
     {
         /// <summary>

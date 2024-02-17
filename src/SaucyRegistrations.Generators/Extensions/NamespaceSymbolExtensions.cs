@@ -27,4 +27,21 @@ internal static class NamespaceSymbolExtensions
             }
         }
     }
+
+    internal static List<INamedTypeSymbol> GetConcreteTypes(this INamespaceSymbol namespaceSymbol)
+    {
+        List<INamedTypeSymbol> types = new();
+
+        foreach (INamedTypeSymbol? symbol in namespaceSymbol.GetTypeMembers())
+        {
+            if (symbol.IsAbstract || symbol.IsGenericType)
+            {
+                continue;
+            }
+
+            types.Add(symbol);
+        }
+
+        return types;
+    }
 }

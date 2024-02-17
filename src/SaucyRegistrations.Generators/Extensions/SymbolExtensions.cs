@@ -4,6 +4,7 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 
 using Saucy.Common.Attributes;
+using Saucy.Common.Enums;
 
 namespace SaucyRegistrations.Generators.Extensions;
 
@@ -14,75 +15,53 @@ namespace SaucyRegistrations.Generators.Extensions;
 internal static class SymbolExtensions
 {
     /// <summary>
-    /// Checks if the given symbol should be included in the source generation.
-    /// The symbol should have the <see cref="IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute" /> attribute.
+    /// Determines whether the symbol should be included in the source generation. If it should, the default service scope is returned.
     /// </summary>
     /// <param name="symbol">The <see cref="ISymbol" /> to check.</param>
+    /// <param name="defaultServiceScope">The default service scope.</param>
     /// <returns><c>true</c> if the symbol should be included in the source generation; otherwise, <c>false</c>.</returns>
-    internal static bool ShouldBeIncludedInSourceGeneration(this ISymbol symbol)
+    /// <seealso cref="ServiceScope" />
+    internal static bool ShouldBeIncludedInSourceGeneration(this ISymbol symbol, out ServiceScope? defaultServiceScope)
     {
-        return symbol.HasAttributeOfType<IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute>();
+        var attribute = symbol.GetFirstAttributeOfType<IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute>();
+
+        if (attribute is null)
+        {
+            defaultServiceScope = null;
+            return false;
+        }
+
+        var serviceScope = attribute.GetValueForPropertyOfType<ServiceScope>(nameof(IncludeInSourceGenerationRegistrationWithDefaultServiceScopeAttribute.DefaultServiceScope));
+
+        defaultServiceScope = serviceScope;
+
+        return true;
     }
 
-    private static bool HasAttributeOfType<T>(this ISymbol symbol)
+    internal static bool HasAttributeOfType<T>(this ISymbol symbol)
     {
         return symbol.GetAttributes().Any(x => x.AttributeClass?.Name == typeof(T).Name);
     }
 
     /// <summary>
-    /// Gets the first attribute with the given name or null if not found.
+    /// Gets the first attribute with a given type.
     /// </summary>
     /// <param name="symbol">The <see cref="ISymbol" /> to get the attribute from.</param>
-    /// <param name="attributeName">The name of the attribute to get.</param>
-    /// <returns></returns>
-    internal static AttributeData? GetFirstAttributeWithNameOrNull(this ISymbol symbol, string attributeName)
-    {
-        return symbol.GetAttributes().FirstOrDefault(x => x.AttributeClass?.Name == attributeName);
-    }
-
-    internal static AttributeData? GetFirstAttributeOfTypeOrNull<T>(this ISymbol symbol)
+    /// <typeparam name="T">The type of the attribute to get.</typeparam>
+    /// <returns>The <see cref="AttributeData" /> of the attribute if found; otherwise, <c>null</c>.</returns>
+    internal static AttributeData? GetFirstAttributeOfType<T>(this ISymbol symbol)
     {
         return symbol.GetAttributes().FirstOrDefault(x => x.AttributeClass?.Name == typeof(T).Name);
     }
 
-    internal static AttributeData GetFirstAttributeWithName(this ISymbol symbol, string attributeName)
-    {
-        return symbol.GetAttributes().First(x => x.AttributeClass?.Name == attributeName);
-    }
-
     /// <summary>
-    /// Gets the value for the property of the given type from the attribute on the symbol.
+    /// Gets the attributes with a given type.
     /// </summary>
-    /// <param name="symbol"></param>
-    /// <param name="attributeName"></param>
-    /// <param name="parameterName"></param>
-    /// <returns></returns>
-    internal static List<string> GetListOfStringsFromAttributeOnSymbol(this ISymbol symbol, string attributeName, string parameterName)
+    /// <param name="symbol">The <see cref="ISymbol" /> to get the attributes from.</param>
+    /// <typeparam name="T">The type of the attribute to get.</typeparam>
+    /// <returns>A <see cref="List{T}" /> of <see cref="AttributeData" />.</returns>
+    internal static List<AttributeData> GetAttributesOfType<T>(this ISymbol symbol)
     {
-        List<string> result = [];
-
-        List<AttributeData> attributes = symbol.GetAttributesWithName(attributeName);
-
-        if (attributes.Count == 0)
-        {
-            return result;
-        }
-
-        foreach (AttributeData attribute in attributes)
-        {
-            var value = attribute.GetValueForPropertyOfType<string>(parameterName);
-
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                result.Add(value);
-            }
-        }
-
-        return result;
-    }
-
-    private static List<AttributeData> GetAttributesWithName(this ISymbol symbol, string attributeName)
-    {
-        return symbol.GetAttributes().Where(x => x.AttributeClass?.Name == attributeName).ToList();
+        return symbol.GetAttributes().Where(x => x.AttributeClass?.Name == typeof(T).Name).ToList();
     }
 }
