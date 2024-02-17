@@ -127,14 +127,6 @@ internal class TypeSymbolsBuilder
 
         foreach (INamedTypeSymbol typeSymbol in concreteTypes)
         {
-            _logger.WriteInformation($"Checking if {typeSymbol.Name} should be included in source generation...");
-
-            if (typeSymbol.HasAttributeOfType<ExcludeRegistration>())
-            {
-                _logger.WriteInformation($"{typeSymbol.Name} should be excluded from source generation.");
-                continue;
-            }
-
             ServiceScope? typeServiceScope = null;
 
             _logger.WriteInformation($"Checking if {typeSymbol.Name} has a service scope attribute...");
@@ -153,8 +145,25 @@ internal class TypeSymbolsBuilder
 
             ServiceScope serviceScope = typeServiceScope ?? assemblyScanConfiguration.DefaultServiceScope;
 
+            // Check to see if the type is being explicitly included.
+            if (typeSymbol.HasAttributeOfType<IncludeRegistration>())
+            {
+                _logger.WriteInformation($"{typeSymbol.Name} has an include registration attribute.");
+                result.Add(new Type(typeSymbol, serviceScope));
+                continue;
+            }
+
+            // If it's not explicitly included, check to see if it ends with any of the class suffixes.
             if (assemblyHasOneOrMoreClassSuffix)
             {
+                _logger.WriteInformation($"Checking if {typeSymbol.Name} should be included in source generation...");
+
+                if (typeSymbol.HasAttributeOfType<ExcludeRegistration>())
+                {
+                    _logger.WriteInformation($"{typeSymbol.Name} should be excluded from source generation.");
+                    continue;
+                }
+
                 _logger.WriteInformation($"Checking if {typeSymbol.Name} ends with any of the class suffixes...");
 
                 foreach (var suffix in assemblyScanConfiguration.ClassSuffixes)
@@ -167,12 +176,7 @@ internal class TypeSymbolsBuilder
                         result.Add(new Type(typeSymbol, serviceScope));
                     }
                 }
-
-                continue;
             }
-
-            _logger.WriteInformation($"Adding {typeSymbol.Name} to type symbols with service scope: {serviceScope}");
-            result.Add(new Type(typeSymbol, serviceScope));
         }
 
         return result;
