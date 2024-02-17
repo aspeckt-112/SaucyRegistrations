@@ -4,7 +4,7 @@ using System.Linq;
 
 using Microsoft.CodeAnalysis;
 
-using SaucyRegistrations.Generators.Parameters;
+using SaucyRegistrations.Generators.Models;
 
 namespace SaucyRegistrations.Generators.Extensions;
 
@@ -24,38 +24,38 @@ public static class AttributeDataExtensions
         return attributeData.AttributeClass?.Name == typeof(T).Name;
     }
 
-    internal static T GetValueOfPropertyWithName<T>(this AttributeData attributeData, string propertyName)
+    /// <summary>
+    /// Gets the value for the property of the given type from the attribute.
+    /// </summary>
+    /// <typeparam name="T">The type of the property to get the value for.</typeparam>
+    /// <param name="attribute">The attribute to get the value from.</param>
+    /// <param name="propertyName">The name of the property on the attribute to get the value for.</param>
+    /// <returns>The value for the property of the given type from the attribute.</returns>
+    internal static T GetValueForPropertyOfType<T>(this AttributeData attribute, string propertyName)
     {
-        return (T)attributeData.GetAttributeParameters().First(x => x.Name == propertyName).Value!;
+        return (T)attribute.GetParameters().First(x => x.Name == propertyName).Value!;
     }
 
-    internal static T GetValueForPropertyOfType<T>(this AttributeData attributeData, string propertyName)
-    {
-        return (T)attributeData.GetAttributeParameters().First(x => x.Name == propertyName).Value!;
-    }
-
-    private static List<AttributeParameter> GetAttributeParameters(this AttributeData attributeData)
+    private static List<AttributeParameter> GetParameters(this AttributeData attributeData)
     {
         ImmutableArray<IParameterSymbol> constructorParameters = attributeData.AttributeConstructor!.Parameters;
-
         ImmutableArray<TypedConstant> namedArguments = attributeData.ConstructorArguments;
 
-        List<AttributeParameter> attributeParameters = new();
+        List<AttributeParameter> result = new();
 
-        for (int i = 0; i < namedArguments.Length; i++)
+        for (var i = 0; i < namedArguments.Length; i++)
         {
-            string parameterName = constructorParameters[i].Name.ToPascalCase();
+            var parameterName = constructorParameters[i].Name.ToPascalCase();
 
             TypedConstant namedArgument = namedArguments[i];
 
-            attributeParameters.Add(
-                new AttributeParameter(
-                    parameterName,
-                    constructorParameters[i].Type, namedArgument.Kind == TypedConstantKind.Array
-                        ? namedArgument.Values
-                        : namedArgument.Value));
+            var value = namedArgument.Kind == TypedConstantKind.Array
+                ? namedArgument.Values
+                : namedArgument.Value;
+
+            result.Add(new AttributeParameter(parameterName, value));
         }
 
-        return attributeParameters;
+        return result;
     }
 }

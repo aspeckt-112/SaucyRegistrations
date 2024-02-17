@@ -15,29 +15,41 @@ namespace SaucyRegistrations.Generators.Extensions;
 internal static class SymbolExtensions
 {
     /// <summary>
-    /// Determines whether the symbol should be included in the source generation. If it should, the default service scope is returned.
+    /// Determines whether the specified <see cref="ISymbol" /> should be included in source generation.
     /// </summary>
     /// <param name="symbol">The <see cref="ISymbol" /> to check.</param>
     /// <param name="defaultServiceScope">The default service scope.</param>
-    /// <returns><c>true</c> if the symbol should be included in the source generation; otherwise, <c>false</c>.</returns>
-    /// <seealso cref="ServiceScope" />
+    /// <returns>
+    /// <c>true</c> if the specified <see cref="ISymbol" /> should be included in source generation; otherwise,
+    /// <c>false</c>.
+    /// </returns>
     internal static bool ShouldBeIncludedInSourceGeneration(this ISymbol symbol, out ServiceScope? defaultServiceScope)
     {
-        var attribute = symbol.GetFirstAttributeOfType<DefaultScopeRegistration>();
+        AttributeData? attribute = symbol.GetFirstAttributeOfType<DefaultScopeRegistration>();
 
         if (attribute is null)
         {
             defaultServiceScope = null;
+
             return false;
         }
 
-        var serviceScope = attribute.GetValueForPropertyOfType<ServiceScope>(nameof(DefaultScopeRegistration.DefaultServiceScope));
+        ServiceScope serviceScope = attribute.GetValueForPropertyOfType<ServiceScope>(nameof(DefaultScopeRegistration.DefaultServiceScope));
 
         defaultServiceScope = serviceScope;
 
         return true;
     }
 
+    /// <summary>
+    /// Determines whether the specified <see cref="ISymbol" /> has an attribute of a given type.
+    /// </summary>
+    /// <param name="symbol">The <see cref="ISymbol" /> to check.</param>
+    /// <typeparam name="T">The type of the attribute to check for.</typeparam>
+    /// <returns>
+    /// <c>true</c> if the specified <see cref="ISymbol" /> has an attribute of the given type; otherwise,
+    /// <c>false</c>.
+    /// </returns>
     internal static bool HasAttributeOfType<T>(this ISymbol symbol)
     {
         return symbol.GetAttributes().Any(x => x.AttributeClass?.Name == typeof(T).Name);

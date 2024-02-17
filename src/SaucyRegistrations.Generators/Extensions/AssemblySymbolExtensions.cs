@@ -23,7 +23,7 @@ internal static class AssemblySymbolExtensions
     {
         var result = new List<string>();
 
-        var attributes = assembly.GetAttributesOfType<ExcludeNamespace>();
+        List<AttributeData> attributes = assembly.GetAttributesOfType<ExcludeNamespace>();
 
         if (!attributes.Any())
         {
@@ -39,11 +39,21 @@ internal static class AssemblySymbolExtensions
         return result;
     }
 
+    /// <summary>
+    /// Checks if the assembly should include Microsoft namespaces when scanning.
+    /// </summary>
+    /// <param name="assembly">The <see cref="IAssemblySymbol" /> to check.</param>
+    /// <returns><c>true</c> if the assembly should include Microsoft namespaces; otherwise, <c>false</c>.</returns>
     internal static bool ShouldIncludeMicrosoftNamespaces(this IAssemblySymbol assembly)
     {
         return assembly.HasAttributeOfType<IncludeMicrosoftNamespaces>();
     }
 
+    /// <summary>
+    /// Checks if the assembly should include System namespaces when scanning.
+    /// </summary>
+    /// <param name="assembly">The <see cref="IAssemblySymbol" /> to check.</param>
+    /// <returns><c>true</c> if the assembly should include System namespaces; otherwise, <c>false</c>.</returns>
     internal static bool ShouldIncludeSystemNamespaces(this IAssemblySymbol assembly)
     {
         return assembly.HasAttributeOfType<IncludeSystemNamespaces>();

@@ -10,10 +10,10 @@ namespace SaucyRegistrations.Generators.Extensions;
 internal static class NamespaceSymbolExtensions
 {
     /// <summary>
-    /// Gets an enumerable list of namespaces from the given namespace symbol.
+    /// Gets an <see cref="IEnumerable{T}" /> of <see cref="INamespaceSymbol" />.
     /// </summary>
     /// <remarks>Uses recursion to get all namespaces.</remarks>
-    /// <param name="namespaceSymbol">The <see cref="INamespaceSymbol"/> to get the list of namespaces from.</param>
+    /// <param name="namespaceSymbol">The <see cref="INamespaceSymbol" /> to get the list of namespaces from.</param>
     /// <returns>A <see cref="IEnumerable{T}" /> of <see cref="INamespaceSymbol" />.</returns>
     internal static IEnumerable<INamespaceSymbol> GetNamespaces(this INamespaceSymbol namespaceSymbol)
     {
@@ -28,13 +28,19 @@ internal static class NamespaceSymbolExtensions
         }
     }
 
+    /// <summary>
+    /// Gets a <see cref="List{T}" /> of <see cref="INamedTypeSymbol" />. This will only return concrete types.
+    /// </summary>
+    /// <param name="namespaceSymbol">The <see cref="INamespaceSymbol" /> to get the list of types from.</param>
+    /// <returns>A <see cref="List{T}" /> of <see cref="INamedTypeSymbol" />.</returns>
     internal static List<INamedTypeSymbol> GetConcreteTypes(this INamespaceSymbol namespaceSymbol)
     {
         List<INamedTypeSymbol> types = new();
 
         foreach (INamedTypeSymbol? symbol in namespaceSymbol.GetTypeMembers())
         {
-            if (symbol.IsAbstract || symbol.IsGenericType)
+            if (symbol.IsAbstract
+                || symbol.IsStatic)
             {
                 continue;
             }

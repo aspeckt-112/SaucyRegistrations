@@ -25,7 +25,7 @@ internal class Assemblies : Dictionary<IAssemblySymbol, AssemblyScanConfiguratio
     /// Adds an assembly to the collection with a configuration.
     /// </summary>
     /// <param name="assembly">The assembly to add.</param>
-    /// <returns>An object allowing configuration of the scan for the added assembly.</returns>
+    /// <returns>The assembly configuration builder.</returns>
     internal AssemblyConfigurationBuilder Add(IAssemblySymbol assembly)
     {
         return new AssemblyConfigurationBuilder(this, assembly);

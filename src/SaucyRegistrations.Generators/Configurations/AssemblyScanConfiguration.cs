@@ -10,12 +10,6 @@ namespace SaucyRegistrations.Generators.Configurations;
 public class AssemblyScanConfiguration
 {
     /// <summary>
-    /// Gets the included namespaces.
-    /// </summary>
-    /// <remarks>Always a new list by default. You can assume this is never null.</remarks>
-    public List<string> ExcludedNamespaces { get; private set; } = new();
-
-    /// <summary>
     /// Gets or sets a value indicating whether to include Microsoft namespaces.
     /// </summary>
     public bool IncludeMicrosoftNamespaces { get; set; }
@@ -30,5 +24,15 @@ public class AssemblyScanConfiguration
     /// </summary>
     public ServiceScope DefaultServiceScope { get; set; }
 
+    /// <summary>
+    /// Gets the class suffixes.
+    /// </summary>
+    /// <remarks>Always a new list by default. You can assume this is never null.</remarks>
     public List<string> ClassSuffixes { get; private set; } = new();
+
+    /// <summary>
+    /// Gets the included namespaces.
+    /// </summary>
+    /// <remarks>Always a new list by default. You can assume this is never null.</remarks>
+    public List<string> ExcludedNamespaces { get; private set; } = new();
 }

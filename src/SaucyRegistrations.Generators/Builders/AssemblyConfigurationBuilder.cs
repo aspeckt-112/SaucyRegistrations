@@ -11,7 +11,6 @@ namespace SaucyRegistrations.Generators.Builders;
 internal class AssemblyConfigurationBuilder
 {
     private readonly Assemblies _assemblies;
-
     private readonly IAssemblySymbol _assembly;
 
     /// <summary>

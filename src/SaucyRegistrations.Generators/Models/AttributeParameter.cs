@@ -1,13 +1,19 @@
-﻿using Microsoft.CodeAnalysis;
+﻿namespace SaucyRegistrations.Generators.Models;
 
-namespace SaucyRegistrations.Generators.Parameters;
-
-public class AttributeParameter(string name, ITypeSymbol type, object? value)
+/// <summary>
+/// Represents a parameter of an attribute.
+/// </summary>
+/// <param name="name">The name of the parameter.</param>
+/// <param name="value">The value of the parameter.</param>
+public class AttributeParameter(string name, object? value)
 {
-	public string Name { get; private set; } = name;
-	
+    /// <summary>
+    /// Gets the name of the parameter.
+    /// </summary>
+    public string Name { get; private set; } = name;
 
-	public ITypeSymbol Type { get; private set; } = type;
-
-	public object? Value { get; private set; } = value;
+    /// <summary>
+    /// Gets the value of the parameter.
+    /// </summary>
+    public object? Value { get; private set; } = value;
 }
