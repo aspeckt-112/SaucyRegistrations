@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 using Microsoft.CodeAnalysis;
@@ -118,6 +119,7 @@ internal class TypeSymbolsBuilder
         if (concreteTypes.Count == 0)
         {
             _logger.WriteInformation($"No concrete types found in namespace: {@namespace}");
+
             return result;
         }
 
@@ -150,6 +152,7 @@ internal class TypeSymbolsBuilder
             {
                 _logger.WriteInformation($"{typeSymbol.Name} has an include registration attribute.");
                 result.Add(new Type(typeSymbol, serviceScope));
+
                 continue;
             }
 
@@ -161,6 +164,7 @@ internal class TypeSymbolsBuilder
                 if (typeSymbol.HasAttributeOfType<ExcludeRegistration>())
                 {
                     _logger.WriteInformation($"{typeSymbol.Name} should be excluded from source generation.");
+
                     continue;
                 }
 
@@ -170,10 +174,12 @@ internal class TypeSymbolsBuilder
                 {
                     _logger.WriteInformation($"Checking if {typeSymbol.Name} ends with {suffix}...");
 
-                    if (typeSymbol.Name.EndsWith(suffix))
+                    if (typeSymbol.Name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
                     {
                         _logger.WriteInformation($"{typeSymbol.Name} ends with {suffix}. Adding to type symbols with service scope: {serviceScope}");
                         result.Add(new Type(typeSymbol, serviceScope));
+
+                        break;
                     }
                 }
             }
