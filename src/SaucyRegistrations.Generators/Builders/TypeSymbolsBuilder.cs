@@ -14,24 +14,18 @@ using Type = SaucyRegistrations.Generators.Models.Type;
 namespace SaucyRegistrations.Generators.Builders;
 
 /// <summary>
-/// A builder for the <see cref="RunConfiguration" /> class.
+/// The builder for the <see cref="TypeSymbols"/>.
 /// </summary>
-internal static class RunConfigurationBuilder
+internal static class TypeSymbolsBuilder
 {
     /// <summary>
-    /// Builds a <see cref="RunConfiguration" /> object from the provided <see cref="GenerationConfiguration" /> and <see cref="Assemblies" />.
+    /// Builds the <see cref="TypeSymbols"/>.
     /// </summary>
-    /// <param name="generationConfiguration">The <see cref="GenerationConfiguration"/>.</param>
-    /// <param name="assemblies">The <see cref="Assemblies"/>.</param>
-    /// <returns>A <see cref="RunConfiguration" /> object.</returns>
-    internal static RunConfiguration Build(GenerationConfiguration generationConfiguration, Assemblies assemblies)
-    {
-        TypeSymbols allTypesInAllAssemblies = GetAllTypeSymbolsInAllAssemblies(assemblies);
+    /// <param name="assemblies">The <see cref="Assemblies"/> to build the <see cref="TypeSymbols"/> from.</param>
+    /// <returns>An instance of the <see cref="TypeSymbols"/> class.</returns>
+    internal static TypeSymbols Build(Assemblies assemblies) => GetTypeSymbolsInAssemblies(assemblies);
 
-        return new RunConfiguration(generationConfiguration, allTypesInAllAssemblies);
-    }
-
-    private static TypeSymbols GetAllTypeSymbolsInAllAssemblies(Assemblies assemblies)
+    private static TypeSymbols GetTypeSymbolsInAssemblies(Assemblies assemblies)
     {
         TypeSymbols result = new();
 

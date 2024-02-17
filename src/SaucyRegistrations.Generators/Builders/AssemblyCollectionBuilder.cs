@@ -20,9 +20,8 @@ internal static class AssemblyCollectionBuilder
     /// Builds the <see cref="Assemblies"/> class.
     /// </summary>
     /// <param name="compilation">The <see cref="Compilation"/>.</param>
-    /// <param name="generationConfiguration">The <see cref="GenerationConfiguration"/>.</param>
     /// <returns>An instance of the <see cref="Assemblies"/> class.</returns>
-    internal static Assemblies Build(Compilation compilation, GenerationConfiguration generationConfiguration)
+    internal static Assemblies Build(Compilation compilation)
     {
         var assemblyCollection = new Assemblies();
 
