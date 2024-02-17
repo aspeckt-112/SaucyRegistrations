@@ -2,7 +2,7 @@ using Saucy.Common.Attributes;
 
 namespace Saucy.Library.Repositories;
 
-[WhenRegisteringWithContainerShouldExcluded]
+[ExcludeRegistration]
 public class RepositoryThatShouldBeExcluded : IRepository
 {
 	public void Get()

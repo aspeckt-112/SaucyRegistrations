@@ -3,7 +3,7 @@ using Saucy.Common.Enums;
 
 namespace Saucy.Library.Repositories;
 
-[WhenRegisteringUseScope(ServiceScope.Scoped)]
+[UseScope(ServiceScope.Scoped)]
 public class ScopedScopedRepository : IRepository
 {
 	public void Get()

@@ -13,23 +13,26 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Saucy.Console", "samples\Sa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Saucy.Common", "src\Saucy.Common\Saucy.Common.csproj", "{97B6E34D-44FB-45A5-A1EC-3EA68C79EE49}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "artifacts", "artifacts", "{CB91836B-D340-4F27-B7FE-1C35B1E7922E}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{B09A1D41-8CD8-4951-B3F4-08CC6EB6CAFE}"
-	ProjectSection(SolutionItems) = preProject
-		docs\useful_links.txt = docs\useful_links.txt
-	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{AE74EBA8-FA8A-4284-AC81-CA2C116B9E67}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SaucyRegistrations.Generators", "tests\SaucyRegistrations.Generators\SaucyRegistrations.Generators.csproj", "{45BB2E83-5E1C-49B4-9244-84006C79764B}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".config", ".config", "{28CD9887-6F0A-4708-BDB3-F8D7C4B163C4}"
-	ProjectSection(SolutionItems) = preProject
-		Directory.Packages.props = Directory.Packages.props
-	EndProjectSection
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Saucy.Library", "samples\Saucy.Library\Saucy.Library.csproj", "{0F9C4175-88F4-4FC8-B7DE-499B8161E915}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{AA67ECD5-30ED-4004-B3C0-474601961CF3}"
+	ProjectSection(SolutionItems) = preProject
+		build.sh = build.sh
+		Directory.Packages.props = Directory.Packages.props
+		global.json = global.json
+		LICENSE = LICENSE
+		NuGet.Config = NuGet.Config
+		README.md = README.md
+		Stylecop.json = Stylecop.json
+		Directory.Build.Props = Directory.Build.Props
+		.editorconfig = .editorconfig
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

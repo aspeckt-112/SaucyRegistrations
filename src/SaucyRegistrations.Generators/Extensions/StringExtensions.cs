@@ -1,19 +1,27 @@
 namespace SaucyRegistrations.Generators.Extensions;
 
-public static class StringExtensions
+/// <summary>
+/// General string extensions.
+/// </summary>
+internal static class StringExtensions
 {
-	internal static string ToPascalCase(this string value)
-	{
-		if (string.IsNullOrEmpty(value))
-		{
-			return value;
-		}
+    /// <summary>
+    /// Converts the string to PascalCase.
+    /// </summary>
+    /// <param name="value">The value to convert.</param>
+    /// <returns>The value in PascalCase.</returns>
+    internal static string ToPascalCase(this string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return value;
+        }
 
-		if (value.Length == 1)
-		{
-			return value.ToUpperInvariant();
-		}
+        if (value.Length == 1)
+        {
+            return value.ToUpperInvariant();
+        }
 
-		return value.Substring(0, 1).ToUpperInvariant() + value.Substring(1);
-	}
+        return value.Substring(0, 1).ToUpperInvariant() + value.Substring(1);
+    }
 }

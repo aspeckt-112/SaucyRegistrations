@@ -3,7 +3,7 @@ using Saucy.Common.Enums;
 
 namespace Saucy.Library.Repositories;
 
-[WhenRegisteringUseScope(ServiceScope.Singleton)]
+[UseScope(ServiceScope.Singleton)]
 public class SingletonScopedRepository : IRepository
 {
 	public void Get()
