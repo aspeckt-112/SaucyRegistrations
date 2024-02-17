@@ -8,6 +8,14 @@
         <Nullable>enable</Nullable>
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <Title>SaucyRegistrations</Title>
+        <Description>Automatically register your classes with a service collection. I wrote it because I'm lazy, use it if you're lazy too!</Description>
+        <PackageProjectUrl>https://github.com/aspeckt-112/SaucyRegistrations</PackageProjectUrl>
+        <License>https://github.com/aspeckt-112/SaucyRegistrations/blob/main/LICENSE</License>
+        <RepositoryUrl>https://github.com/aspeckt-112/SaucyRegistrations</RepositoryUrl>
+        <RepositoryType>Git</RepositoryType>
+        <Version>0.0.1</Version>
     </PropertyGroup>
 
     <ItemGroup>
