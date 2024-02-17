@@ -3,10 +3,9 @@ using Saucy.Common.Enums;
 
 namespace Saucy.Console.Services;
 
-[UseScope(ServiceScope.Transient)]
-public class ConsoleServiceExplicitlyRegisteredAsTransient : IConsoleHelloService
+[UseScope(ServiceScope.Singleton)]
+public class HelloExplicitlyRegisteredAsSingletonService : IConsoleHelloService
 {
-
     public void SayHello()
     {
         throw new NotImplementedException();
