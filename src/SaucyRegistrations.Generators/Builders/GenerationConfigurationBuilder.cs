@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 
 using Microsoft.CodeAnalysis;
@@ -7,6 +6,7 @@ using Saucy.Common.Attributes;
 
 using SaucyRegistrations.Generators.Configurations;
 using SaucyRegistrations.Generators.Extensions;
+using SaucyRegistrations.Generators.Logging;
 
 // ReSharper disable ForeachCanBeConvertedToQueryUsingAnotherGetEnumerator
 // ReSharper disable ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
@@ -14,10 +14,21 @@ using SaucyRegistrations.Generators.Extensions;
 namespace SaucyRegistrations.Generators.Builders;
 
 /// <summary>
-/// The builder for the generation configuration.
+/// The builder for the <see cref="GenerationConfiguration" /> class.
 /// </summary>
-internal static class GenerationConfigurationBuilder
+internal class GenerationConfigurationBuilder
 {
+    private readonly Logger _logger;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GenerationConfigurationBuilder" /> class.
+    /// </summary>
+    /// <param name="logger">The <see cref="Logger"/>.</param>
+    internal GenerationConfigurationBuilder(Logger logger)
+    {
+        _logger = logger;
+    }
+
     /// <summary>
     /// Builds the generation configuration.
     /// </summary>
@@ -26,18 +37,17 @@ internal static class GenerationConfigurationBuilder
     /// An instance of the <see cref="GenerationConfiguration" /> class, or null if there's no generation
     /// configuration found.
     /// </returns>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when the <see cref="ServiceCollectionMethod" /> is not applied to a
-    /// class in the compilation assembly.
-    /// </exception>
-    internal static GenerationConfiguration? Build(Compilation compilation)
+    internal GenerationConfiguration? Build(Compilation compilation)
     {
         IAssemblySymbol compilationAssembly = compilation.Assembly;
+
+        _logger.WriteInformation($"Building generation configuration for assembly: {compilationAssembly.Name}");
 
         var compilationAssemblyNamespaces = compilationAssembly.GlobalNamespace.GetNamespaces().ToList();
 
         if (compilationAssemblyNamespaces.Count == 0)
         {
+            _logger.WriteInformation("No namespaces found in the compilation assembly.");
             return null;
         }
 
@@ -53,6 +63,7 @@ internal static class GenerationConfigurationBuilder
                 {
                     if (attribute.Is<ServiceCollectionMethod>())
                     {
+                        _logger.WriteInformation($"Found class with ServiceCollectionMethod attribute: {namedTypeSymbol.Name}");
                         var methodName = attribute.GetValueForPropertyOfType<string>(nameof(ServiceCollectionMethod.MethodName));
                         generationConfiguration = new GenerationConfiguration(@namespace.ToDisplayString(), namedTypeSymbol.Name, methodName);
                     }
@@ -62,7 +73,7 @@ internal static class GenerationConfigurationBuilder
 
         if (generationConfiguration is null)
         {
-            throw new InvalidOperationException("No generation configuration found. Have you applied the [GenerateServiceCollectionMethod] attribute to a class?");
+            _logger.WriteInformation("No class with ServiceCollectionMethod attribute found.");
         }
 
         return generationConfiguration;

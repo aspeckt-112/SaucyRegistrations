@@ -4,11 +4,13 @@ using System.Text;
 
 using Microsoft.CodeAnalysis;
 
+using Saucy.Common.Attributes;
 using Saucy.Common.Enums;
 
 using SaucyRegistrations.Generators.Builders;
 using SaucyRegistrations.Generators.Collections;
 using SaucyRegistrations.Generators.Configurations;
+using SaucyRegistrations.Generators.Logging;
 
 using Type = SaucyRegistrations.Generators.Models.Type;
 
@@ -20,6 +22,22 @@ namespace SaucyRegistrations.Generators;
 [Generator]
 public class SaucyGenerator : ISourceGenerator
 {
+    private readonly Logger _logger;
+    private readonly GenerationConfigurationBuilder _generationConfigurationBuilder;
+    private readonly AssemblyCollectionBuilder _assemblyCollectionBuilder;
+    private readonly TypeSymbolsBuilder _typeSymbolsBuilder;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SaucyGenerator" /> class.
+    /// </summary>
+    public SaucyGenerator()
+    {
+        _logger = new Logger();
+        _generationConfigurationBuilder = new GenerationConfigurationBuilder(_logger);
+        _assemblyCollectionBuilder = new AssemblyCollectionBuilder(_logger);
+        _typeSymbolsBuilder = new TypeSymbolsBuilder(_logger);
+    }
+
     /// <summary>
     /// The initialization method for the source generator.
     /// </summary>
@@ -33,36 +51,40 @@ public class SaucyGenerator : ISourceGenerator
     /// <inheritdoc />
     public void Execute(GeneratorExecutionContext context)
     {
-        try
+        _logger.WriteInformation("Starting source generation...");
+
+        GenerationConfiguration? generationConfiguration = _generationConfigurationBuilder.Build(context.Compilation);
+
+        if (generationConfiguration is null)
         {
-            GenerationConfiguration? generationConfiguration = GenerationConfigurationBuilder.Build(context.Compilation);
+            _logger.WriteWarning("No generation configuration found. Exiting source generation. No source will be generated.");
+            _logger.WriteWarning($"Ensure you've added the [{nameof(ServiceCollectionMethod)}] attribute to a class in your project.");
 
-            if (generationConfiguration is null)
-            {
-                // Theres nothing to generate
-                return;
-            }
-
-            Assemblies assemblyCollection = AssemblyCollectionBuilder.Build(context.Compilation);
-
-            if (assemblyCollection.Count == 0)
-            {
-                // Theres nothing to generate
-                return;
-            }
-
-            var typeSymbols = TypeSymbolsBuilder.Build(assemblyCollection);
-
-            var source = GenerateRegistrationCode(generationConfiguration, typeSymbols, context.Compilation.ObjectType);
-
-            context.AddSource($"{generationConfiguration.Class}.Generated.cs", source);
+            return;
         }
-        catch (Exception e)
+
+        Assemblies assemblyCollection = _assemblyCollectionBuilder.Build(context.Compilation);
+
+        if (assemblyCollection.Count == 0)
         {
-            Console.WriteLine(e);
+            _logger.WriteWarning("No assemblies found. Exiting source generation. No source will be generated.");
 
-            throw;
+            return;
         }
+
+        TypeSymbols typeSymbols = _typeSymbolsBuilder.Build(assemblyCollection);
+
+        if (typeSymbols.Count == 0)
+        {
+            _logger.WriteWarning("No type symbols found. Exiting source generation. No source will be generated.");
+            _logger.WriteWarning("Ensure that you've configured the Saucy library correctly.");
+
+            return;
+        }
+
+        var source = GenerateRegistrationCode(generationConfiguration, typeSymbols, context.Compilation.ObjectType);
+
+        context.AddSource($"{generationConfiguration.Class}.Generated.cs", source);
     }
 
     private string GenerateRegistrationCode(GenerationConfiguration generationConfiguration, TypeSymbols typeSymbols, INamedTypeSymbol objectSymbol)
@@ -78,7 +100,8 @@ namespace {generationConfiguration.Namespace}
 	public static partial class {generationConfiguration.Class}
 	{{
 		public static void {generationConfiguration.Method}(IServiceCollection serviceCollection)
-		{{");
+		{{"
+        );
 
         sourceBuilder.AppendLine();
 
