@@ -15,12 +15,18 @@
         <License>https://github.com/aspeckt-112/SaucyRegistrations/blob/main/LICENSE</License>
         <RepositoryUrl>https://github.com/aspeckt-112/SaucyRegistrations</RepositoryUrl>
         <RepositoryType>Git</RepositoryType>
-        <Version>0.0.4</Version>
+        <Version>0.0.5</Version>
     </PropertyGroup>
     
-    <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-        <PackageReference Include="Roslynator.Analyzers"/>
-        <PackageReference Include="StyleCop.Analyzers"/>
+    <ItemGroup>
+        <PackageReference Include="Roslynator.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="StyleCop.Analyzers">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
     </ItemGroup>
     
     <ItemGroup>
