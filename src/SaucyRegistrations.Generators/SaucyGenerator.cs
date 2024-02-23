@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 using Microsoft.CodeAnalysis;
@@ -10,6 +11,7 @@ using Saucy.Common.Enums;
 using SaucyRegistrations.Generators.Builders;
 using SaucyRegistrations.Generators.Collections;
 using SaucyRegistrations.Generators.Configurations;
+using SaucyRegistrations.Generators.Extensions;
 using SaucyRegistrations.Generators.Logging;
 
 using Type = SaucyRegistrations.Generators.Models.Type;
@@ -24,8 +26,8 @@ public class SaucyGenerator : ISourceGenerator
 {
     private readonly Logger _logger;
     private readonly GenerationConfigurationBuilder _generationConfigurationBuilder;
-    private readonly AssemblyCollectionBuilder _assemblyCollectionBuilder;
-    private readonly TypeSymbolsBuilder _typeSymbolsBuilder;
+    private readonly AssemblyBuilder _assemblyBuilder;
+    // private readonly TypeSymbolsBuilder _typeSymbolsBuilder;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SaucyGenerator" /> class.
@@ -34,8 +36,8 @@ public class SaucyGenerator : ISourceGenerator
     {
         _logger = new Logger();
         _generationConfigurationBuilder = new GenerationConfigurationBuilder(_logger);
-        _assemblyCollectionBuilder = new AssemblyCollectionBuilder(_logger);
-        _typeSymbolsBuilder = new TypeSymbolsBuilder(_logger);
+        _assemblyBuilder = new AssemblyBuilder(_logger);
+        // _typeSymbolsBuilder = new TypeSymbolsBuilder(_logger);
     }
 
     /// <summary>
@@ -53,38 +55,101 @@ public class SaucyGenerator : ISourceGenerator
     {
         _logger.WriteInformation("Starting source generation...");
 
-        GenerationConfiguration? generationConfiguration = _generationConfigurationBuilder.Build(context.Compilation);
+        Assemblies assembliesToScan = _assemblyBuilder.Build(context.Compilation);
 
-        if (generationConfiguration is null)
-        {
-            _logger.WriteWarning("No generation configuration found. Exiting source generation. No source will be generated.");
-            _logger.WriteWarning($"Ensure you've added the [{nameof(ServiceCollectionMethod)}] attribute to a class in your project.");
-
-            return;
-        }
-
-        Assemblies assemblyCollection = _assemblyCollectionBuilder.Build(context.Compilation);
-
-        if (assemblyCollection.Count == 0)
+        if (assembliesToScan.Count == 0)
         {
             _logger.WriteWarning("No assemblies found. Exiting source generation. No source will be generated.");
 
             return;
         }
 
-        TypeSymbols typeSymbols = _typeSymbolsBuilder.Build(assemblyCollection);
+        Namespaces namespaces = new();
 
-        if (typeSymbols.Count == 0)
+        Dictionary<ITypeSymbol, ServiceScope> typeSymbols = new();
+
+        foreach (IAssemblySymbol assemblySymbol in assembliesToScan)
         {
-            _logger.WriteWarning("No type symbols found. Exiting source generation. No source will be generated.");
-            _logger.WriteWarning("Ensure that you've configured the Saucy library correctly.");
+            var assemblyNamespaces = assemblySymbol.GlobalNamespace.GetNamespaces().ToList();
 
-            return;
+            var flatListOfTypes = assemblyNamespaces.SelectMany(x => x.GetConcreteTypes()).ToList();
+
+            var explicitlyRegisteredTypes =
+                from type in flatListOfTypes
+                let addTypeAttribute = type.GetFirstAttributeOfType<SaucyAddType>()
+                where addTypeAttribute is not null
+                    select new
+                    {
+                        Type = type,
+                        ServiceScope = addTypeAttribute.GetValueForPropertyOfType<ServiceScope>(nameof(SaucyAddType.ServiceScope)),
+                    };
+
+            foreach (var registeredType in explicitlyRegisteredTypes)
+            {
+                typeSymbols.Add(registeredType.Type, registeredType.ServiceScope);
+            }
+
+            // Now there's a list of types that have been explicitly registered, we can remove them from the list of types
+            // that we're going to scan for.
+            flatListOfTypes.RemoveAll(x => typeSymbols.ContainsKey(x));
+
+            List<(string, ServiceScope)> namespacesToIncludeAll = new();
+
+            // If the namespace is any of the namespaces in the assembly
+            // that we want to include everything in, do that
+            var addNamespaceAttributes = assemblySymbol.GetAttributesOfType<SaucyAddNamespace>();
+
+            foreach (AttributeData attribute in addNamespaceAttributes)
+            {
+                var namespaceToAdd = attribute.GetValueForPropertyOfType<string>(nameof(SaucyAddNamespace.Namespace));
+                var scope = attribute.GetValueForPropertyOfType<ServiceScope>(nameof(SaucyAddNamespace.Scope));
+                namespacesToIncludeAll.Add((namespaceToAdd, scope));
+            }
+
+            foreach (var (namespaceToAdd, scope) in namespacesToIncludeAll)
+            {
+                var things = assemblyNamespaces.Where(x => x.ToDisplayString().EndsWith(namespaceToAdd)).ToList();
+
+                foreach (var thing in things)
+                {
+                    var types = thing.GetConcreteTypes();
+
+                    foreach (var type in types)
+                    {
+                        typeSymbols.Add(type, scope);
+                    }
+                }
+            }
+
+            namespaces.AddRange(assemblyNamespaces);
         }
 
-        var source = GenerateRegistrationCode(generationConfiguration, typeSymbols, context.Compilation.ObjectType);
+        throw new NotImplementedException();
 
-        context.AddSource($"{generationConfiguration.Class}.Generated.cs", source);
+
+        // GenerationConfiguration? generationConfiguration = _generationConfigurationBuilder.Build(context.Compilation);
+        //
+        // if (generationConfiguration is null)
+        // {
+        //     _logger.WriteWarning("No generation configuration found. Exiting source generation. No source will be generated.");
+        //     _logger.WriteWarning($"Ensure you've added the [{nameof(ServiceCollectionMethod)}] attribute to a class in your project.");
+        //
+        //     return;
+        // }
+        //
+        // TypeSymbols typeSymbols = _typeSymbolsBuilder.Build(assembliesToScan);
+        //
+        // if (typeSymbols.Count == 0)
+        // {
+        //     _logger.WriteWarning("No type symbols found. Exiting source generation. No source will be generated.");
+        //     _logger.WriteWarning("Ensure that you've configured the Saucy library correctly.");
+        //
+        //     return;
+        // }
+        //
+        // var source = GenerateRegistrationCode(generationConfiguration, typeSymbols, context.Compilation.ObjectType);
+        //
+        // context.AddSource($"{generationConfiguration.Class}.Generated.cs", source);
     }
 
     private string GenerateRegistrationCode(GenerationConfiguration generationConfiguration, TypeSymbols typeSymbols, INamedTypeSymbol objectSymbol)

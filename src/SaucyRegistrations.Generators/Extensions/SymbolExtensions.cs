@@ -14,31 +14,9 @@ namespace SaucyRegistrations.Generators.Extensions;
 /// <seealso cref="ISymbol" />
 internal static class SymbolExtensions
 {
-    /// <summary>
-    /// Determines whether the specified <see cref="ISymbol" /> should be included in source generation.
-    /// </summary>
-    /// <param name="symbol">The <see cref="ISymbol" /> to check.</param>
-    /// <param name="defaultServiceScope">The default service scope.</param>
-    /// <returns>
-    /// <c>true</c> if the specified <see cref="ISymbol" /> should be included in source generation; otherwise,
-    /// <c>false</c>.
-    /// </returns>
-    internal static bool ShouldBeIncludedInSourceGeneration(this ISymbol symbol, out ServiceScope? defaultServiceScope)
+    internal static bool ShouldBeIncludedInSourceGeneration(this ISymbol symbol)
     {
-        AttributeData? attribute = symbol.GetFirstAttributeOfType<DefaultScopeRegistration>();
-
-        if (attribute is null)
-        {
-            defaultServiceScope = null;
-
-            return false;
-        }
-
-        ServiceScope serviceScope = attribute.GetValueForPropertyOfType<ServiceScope>(nameof(DefaultScopeRegistration.DefaultServiceScope));
-
-        defaultServiceScope = serviceScope;
-
-        return true;
+        return symbol.HasAttributeOfType<SaucyInclude>();
     }
 
     /// <summary>
