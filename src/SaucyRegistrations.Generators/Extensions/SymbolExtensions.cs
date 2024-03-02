@@ -23,7 +23,7 @@ internal static class SymbolExtensions
     /// </returns>
     internal static bool ShouldBeIncludedInSourceGeneration(this ISymbol symbol)
     {
-        return symbol.HasAttributeOfType<SaucyInclude>();
+        return symbol.ContainsAttributeOfType<SaucyInclude>();
     }
 
     /// <summary>
@@ -32,7 +32,7 @@ internal static class SymbolExtensions
     /// <param name="symbol">The <see cref="ISymbol" /> to get the attribute from.</param>
     /// <typeparam name="T">The type of the attribute to get.</typeparam>
     /// <returns>The <see cref="AttributeData" /> of the attribute if found; otherwise, <c>null</c>.</returns>
-    internal static AttributeData? GetFirstAttributeOfType<T>(this ISymbol symbol)
+    internal static AttributeData? FindAttributeOfType<T>(this ISymbol symbol)
     {
         return symbol.GetAttributes().FirstOrDefault(x => x.AttributeClass?.Name == typeof(T).Name);
     }
@@ -43,7 +43,7 @@ internal static class SymbolExtensions
     /// <param name="symbol">The <see cref="ISymbol" /> to get the attributes from.</param>
     /// <typeparam name="T">The type of the attribute to get.</typeparam>
     /// <returns>A <see cref="List{T}" /> of <see cref="AttributeData" />.</returns>
-    internal static List<AttributeData> GetAttributesOfType<T>(this ISymbol symbol)
+    internal static List<AttributeData> FilterAttributesOfType<T>(this ISymbol symbol)
     {
         return symbol.GetAttributes().Where(x => x.AttributeClass?.Name == typeof(T).Name).ToList();
     }
@@ -57,7 +57,7 @@ internal static class SymbolExtensions
     /// <c>true</c> if the specified <see cref="ISymbol" /> has an attribute of the given type; otherwise,
     /// <c>false</c>.
     /// </returns>
-    private static bool HasAttributeOfType<T>(this ISymbol symbol)
+    private static bool ContainsAttributeOfType<T>(this ISymbol symbol)
     {
         return symbol.GetAttributes().Any(x => x.AttributeClass?.Name == typeof(T).Name);
     }

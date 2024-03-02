@@ -37,7 +37,7 @@ public sealed class SaucyGenerator : ISourceGenerator
             return;
         }
 
-        var allNamespacesInAllAssemblies = assembliesToScan.SelectMany(x => x.GlobalNamespace.GetNamespaces()).ToList();
+        var allNamespacesInAllAssemblies = assembliesToScan.SelectMany(x => x.GlobalNamespace.GetAllNestedNamespaces()).ToList();
 
         (string Namespace, string Class, string Method)? generationConfiguration = BuildGenerationConfiguration(allNamespacesInAllAssemblies);
 
@@ -58,19 +58,19 @@ public sealed class SaucyGenerator : ISourceGenerator
             var flatListOfTypes
                 = (
                     from @namespace in assemblyNamespaces
-                    from type in @namespace.GetConcreteTypes()
-                    let excludeTypeAttribute = type.GetFirstAttributeOfType<SaucyExclude>()
+                    from type in @namespace.GetInstantiableTypesInNamespace()
+                    let excludeTypeAttribute = type.FindAttributeOfType<SaucyExclude>()
                     where excludeTypeAttribute is null
                     select type).ToList();
 
             // First, get all types that have been explicitly registered.
             var explicitlyRegisteredTypes =
                 from type in flatListOfTypes
-                let addTypeAttribute = type.GetFirstAttributeOfType<SaucyAddType>()
+                let addTypeAttribute = type.FindAttributeOfType<SaucyAddType>()
                 where addTypeAttribute is not null
-                let scopeAttribute = type.GetFirstAttributeOfType<SaucyScope>()
+                let scopeAttribute = type.FindAttributeOfType<SaucyScope>()
                 where scopeAttribute is not null
-                select new { Type = type, ServiceScope = scopeAttribute.GetValueForPropertyOfType<ServiceScope>(nameof(SaucyScope.ServiceScope)) };
+                select new { Type = type, ServiceScope = scopeAttribute.GetPropertyValueAsType<ServiceScope>(nameof(SaucyScope.ServiceScope)) };
 
             foreach (var registeredType in explicitlyRegisteredTypes)
             {
@@ -80,12 +80,12 @@ public sealed class SaucyGenerator : ISourceGenerator
             // Next, get the namespaces that the user has specified to include all types within.
             List<(string, ServiceScope)> namespacesToIncludeAllTypesWithin = new();
 
-            List<AttributeData> addNamespaceAttributes = assemblySymbol.GetAttributesOfType<SaucyAddNamespace>();
+            List<AttributeData> addNamespaceAttributes = assemblySymbol.FilterAttributesOfType<SaucyAddNamespace>();
 
             foreach (AttributeData attribute in addNamespaceAttributes)
             {
-                var namespaceToAdd = attribute.GetValueForPropertyOfType<string>(nameof(SaucyAddNamespace.Namespace));
-                ServiceScope scope = attribute.GetValueForPropertyOfType<ServiceScope>(nameof(SaucyAddNamespace.Scope));
+                var namespaceToAdd = attribute.GetPropertyValueAsType<string>(nameof(SaucyAddNamespace.Namespace));
+                ServiceScope scope = attribute.GetPropertyValueAsType<ServiceScope>(nameof(SaucyAddNamespace.Scope));
                 namespacesToIncludeAllTypesWithin.Add((namespaceToAdd, scope));
             }
 
@@ -100,11 +100,11 @@ public sealed class SaucyGenerator : ISourceGenerator
                     foreach (INamedTypeSymbol? type in typesInNamespace)
                     {
                         // Check to see if the type has a custom scope.
-                        AttributeData? scopeAttribute = type.GetFirstAttributeOfType<SaucyScope>();
+                        AttributeData? scopeAttribute = type.FindAttributeOfType<SaucyScope>();
 
                         if (scopeAttribute is not null)
                         {
-                            ServiceScope customScope = scopeAttribute.GetValueForPropertyOfType<ServiceScope>(nameof(SaucyScope.ServiceScope));
+                            ServiceScope customScope = scopeAttribute.GetPropertyValueAsType<ServiceScope>(nameof(SaucyScope.ServiceScope));
                             typeSymbols.Add(type, customScope);
 
                             continue;
@@ -149,7 +149,7 @@ public sealed class SaucyGenerator : ISourceGenerator
                 {
                     if (attribute.Is<ServiceCollectionMethod>())
                     {
-                        var methodName = attribute.GetValueForPropertyOfType<string>(nameof(ServiceCollectionMethod.MethodName));
+                        var methodName = attribute.GetPropertyValueAsType<string>(nameof(ServiceCollectionMethod.MethodName));
 
                         return new ValueTuple<string, string, string>(assemblyNamespace.ToDisplayString(), namedTypeSymbol.Name, methodName);
                     }
