@@ -9,12 +9,8 @@ using Saucy.Common.Attributes;
 using Saucy.Common.Enums;
 
 using SaucyRegistrations.Generators.Builders;
-using SaucyRegistrations.Generators.Collections;
-using SaucyRegistrations.Generators.Configurations;
 using SaucyRegistrations.Generators.Extensions;
 using SaucyRegistrations.Generators.Logging;
-
-using Type = SaucyRegistrations.Generators.Models.Type;
 
 namespace SaucyRegistrations.Generators;
 
@@ -152,6 +148,14 @@ public class SaucyGenerator : ISourceGenerator
 
                         foreach (INamedTypeSymbol? type in types)
                         {
+                            // Check to see if the tpype should be excluded
+                            AttributeData? excludeTypeAttribute = type.GetFirstAttributeOfType<SaucyExclude>();
+
+                            if (excludeTypeAttribute is not null)
+                            {
+                                continue;
+                            }
+
                             // Check to see if the type has a custom scope.
                             AttributeData? scopeAttribute = type.GetFirstAttributeOfType<SaucyScope>();
 
@@ -210,11 +214,11 @@ namespace {generationConfiguration.Namespace}
 
             INamedTypeSymbol? classBaseType = typeSymbol.BaseType;
 
-            var classHasBaseType = classBaseType is not null;
+            var classHasAbstractBaseType = classBaseType is not null && classBaseType.IsAbstract;
 
-            if (classHasBaseType && typeSymbol.BaseType!.IsAbstract)
+            if (classHasAbstractBaseType)
             {
-                var fullyQualifiedBaseTypeName = typeSymbol.BaseType.ToDisplayString();
+                var fullyQualifiedBaseTypeName = typeSymbol.BaseType!.ToDisplayString();
 
                 sourceBuilder.AppendLine($@"            {serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedBaseTypeName}, {fullyQualifiedTypeName}>();");
             }
@@ -234,7 +238,7 @@ namespace {generationConfiguration.Namespace}
 
                         break;
                     }
-                case false when !classHasBaseType:
+                case false when !classHasAbstractBaseType:
                     sourceBuilder.AppendLine($@"            {serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedTypeName}>();");
 
                     break;

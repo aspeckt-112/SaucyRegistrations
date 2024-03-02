@@ -1,6 +1,6 @@
 namespace Saucy.Console.Builders.MoreBuilders;
 
-public class ImplementedAbstractBuilder : IAbstractBuilder
+public class ImplementedAbstractBuilder : AbstractBuilder, IAbstractInterface
 {
 
 }
