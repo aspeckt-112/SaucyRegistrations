@@ -15,13 +15,13 @@ internal static class NamespaceSymbolExtensions
     /// <remarks>Uses recursion to get all namespaces.</remarks>
     /// <param name="namespaceSymbol">The <see cref="INamespaceSymbol" /> to get the list of namespaces from.</param>
     /// <returns>A <see cref="IEnumerable{T}" /> of <see cref="INamespaceSymbol" />.</returns>
-    internal static IEnumerable<INamespaceSymbol> GetNamespaces(this INamespaceSymbol namespaceSymbol)
+    internal static IEnumerable<INamespaceSymbol> GetAllNestedNamespaces(this INamespaceSymbol namespaceSymbol)
     {
         foreach (INamespaceSymbol? symbol in namespaceSymbol.GetNamespaceMembers())
         {
             yield return symbol;
 
-            foreach (INamespaceSymbol? childNamespace in GetNamespaces(symbol))
+            foreach (INamespaceSymbol? childNamespace in GetAllNestedNamespaces(symbol))
             {
                 yield return childNamespace;
             }
@@ -33,7 +33,7 @@ internal static class NamespaceSymbolExtensions
     /// </summary>
     /// <param name="namespaceSymbol">The <see cref="INamespaceSymbol" /> to get the list of types from.</param>
     /// <returns>A <see cref="List{T}" /> of <see cref="INamedTypeSymbol" />.</returns>
-    internal static List<INamedTypeSymbol> GetConcreteTypes(this INamespaceSymbol namespaceSymbol)
+    internal static List<INamedTypeSymbol> GetInstantiableTypesInNamespace(this INamespaceSymbol namespaceSymbol)
     {
         List<INamedTypeSymbol> types = new();
 

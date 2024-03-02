@@ -2,7 +2,7 @@ using Saucy.Common.Attributes;
 
 namespace Saucy.Console.Builders;
 
-[ExcludeRegistration]
+[SaucyExclude]
 public class ConcreteExcludedBuilder
 {
 }

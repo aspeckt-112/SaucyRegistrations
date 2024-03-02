@@ -4,8 +4,6 @@ using System.Linq;
 
 using Microsoft.CodeAnalysis;
 
-using SaucyRegistrations.Generators.Models;
-
 namespace SaucyRegistrations.Generators.Extensions;
 
 /// <summary>
@@ -31,17 +29,17 @@ public static class AttributeDataExtensions
     /// <param name="attribute">The attribute to get the value from.</param>
     /// <param name="propertyName">The name of the property on the attribute to get the value for.</param>
     /// <returns>The value for the property of the given type from the attribute.</returns>
-    internal static T GetValueForPropertyOfType<T>(this AttributeData attribute, string propertyName)
+    internal static T GetPropertyValueAsType<T>(this AttributeData attribute, string propertyName)
     {
-        return (T)attribute.GetParameters().First(x => x.Name == propertyName).Value!;
+        return (T)attribute.ExtractAttributeParameters().First(x => x.Name == propertyName).Value!;
     }
 
-    private static List<AttributeParameter> GetParameters(this AttributeData attributeData)
+    private static List<(string Name, object? Value)> ExtractAttributeParameters(this AttributeData attributeData)
     {
+        List<(string Name, object? Value)> result = new();
+
         ImmutableArray<IParameterSymbol> constructorParameters = attributeData.AttributeConstructor!.Parameters;
         ImmutableArray<TypedConstant> namedArguments = attributeData.ConstructorArguments;
-
-        List<AttributeParameter> result = new();
 
         for (var i = 0; i < namedArguments.Length; i++)
         {
@@ -53,7 +51,7 @@ public static class AttributeDataExtensions
                 ? namedArgument.Values
                 : namedArgument.Value;
 
-            result.Add(new AttributeParameter(parameterName, value));
+            result.Add((parameterName, value));
         }
 
         return result;

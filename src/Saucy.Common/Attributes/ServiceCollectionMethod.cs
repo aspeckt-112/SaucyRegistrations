@@ -1,17 +1,18 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Saucy.Common.Attributes
 {
     /// <summary>
-    /// The <see cref="ServiceCollectionMethod" /> attribute is used to specify the method that will be generated for the
-    /// service collection.
-    /// If this is not applied to a class in the common assembly, the source generation process will not occur.
+    /// This attribute is used to identify the class that the service collection method will be generated for.
     /// </summary>
+    /// <usage>[ServiceCollectionMethod("AddRegistrations")]<para />public partial class Program{}</usage>
     [AttributeUsage(AttributeTargets.Class)]
-    public class ServiceCollectionMethod : Attribute
+    [SuppressMessage("StyleCop.CSharp.DocumentationRules", "SA1629:Documentation text should end with a period", Justification = "Not applicable")]
+    public sealed class ServiceCollectionMethod : Attribute
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="ServiceCollectionMethod" /> class.
+        /// Initializes a new instance of the <see cref="ServiceCollectionMethod"/> class.
         /// </summary>
         /// <param name="methodName">The name of the method that will be generated.</param>
         public ServiceCollectionMethod(string methodName)

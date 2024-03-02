@@ -1,7 +1,10 @@
-﻿using Saucy.Common.Attributes;
+﻿// <copyright file="AssemblyInfo.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
+
+using Saucy.Common.Attributes;
 using Saucy.Common.Enums;
 
-[assembly: DefaultScopeRegistration(ServiceScope.Transient)]
-[assembly: SuffixRegistration("Service")]
-[assembly: SuffixRegistration("Builder")]
-[assembly: ExcludeNamespace("Saucy.Console.ExcludedNamespace")]
+[assembly: SaucyInclude]
+[assembly: SaucyAddNamespace(nameof(Saucy.Console.Builders), ServiceScope.Transient)]
+[assembly: SaucyAddNamespace(nameof(Saucy.Console.Services), ServiceScope.Transient)]
