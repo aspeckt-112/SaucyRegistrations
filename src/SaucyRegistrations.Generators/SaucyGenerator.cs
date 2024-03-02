@@ -64,95 +64,119 @@ public class SaucyGenerator : ISourceGenerator
             return;
         }
 
-        Namespaces namespaces = new();
-
         Dictionary<ITypeSymbol, ServiceScope> typeSymbols = new();
+
+        (string Namespace, string Class, string Method)? generationConfiguration = null;
 
         foreach (IAssemblySymbol assemblySymbol in assembliesToScan)
         {
             var assemblyNamespaces = assemblySymbol.GlobalNamespace.GetNamespaces().ToList();
 
-            var flatListOfTypes = assemblyNamespaces.SelectMany(x => x.GetConcreteTypes()).ToList();
-
-            var explicitlyRegisteredTypes =
-                from type in flatListOfTypes
-                let addTypeAttribute = type.GetFirstAttributeOfType<SaucyAddType>()
-                where addTypeAttribute is not null
-                    select new
-                    {
-                        Type = type,
-                        ServiceScope = addTypeAttribute.GetValueForPropertyOfType<ServiceScope>(nameof(SaucyAddType.ServiceScope)),
-                    };
-
-            foreach (var registeredType in explicitlyRegisteredTypes)
+            if (generationConfiguration is null)
             {
-                typeSymbols.Add(registeredType.Type, registeredType.ServiceScope);
-            }
-
-            // Now there's a list of types that have been explicitly registered, we can remove them from the list of types
-            // that we're going to scan for.
-            flatListOfTypes.RemoveAll(x => typeSymbols.ContainsKey(x));
-
-            List<(string, ServiceScope)> namespacesToIncludeAll = new();
-
-            // If the namespace is any of the namespaces in the assembly
-            // that we want to include everything in, do that
-            var addNamespaceAttributes = assemblySymbol.GetAttributesOfType<SaucyAddNamespace>();
-
-            foreach (AttributeData attribute in addNamespaceAttributes)
-            {
-                var namespaceToAdd = attribute.GetValueForPropertyOfType<string>(nameof(SaucyAddNamespace.Namespace));
-                var scope = attribute.GetValueForPropertyOfType<ServiceScope>(nameof(SaucyAddNamespace.Scope));
-                namespacesToIncludeAll.Add((namespaceToAdd, scope));
-            }
-
-            foreach (var (namespaceToAdd, scope) in namespacesToIncludeAll)
-            {
-                var things = assemblyNamespaces.Where(x => x.ToDisplayString().EndsWith(namespaceToAdd)).ToList();
-
-                foreach (var thing in things)
+                void BuildGenerationConfiguration()
                 {
-                    var types = thing.GetConcreteTypes();
-
-                    foreach (var type in types)
+                    foreach (INamespaceSymbol? assemblyNamespace in assemblyNamespaces)
                     {
-                        typeSymbols.Add(type, scope);
+                        foreach (INamedTypeSymbol? namedTypeSymbol in assemblyNamespace.GetTypeMembers())
+                        {
+                            foreach (AttributeData? attribute in namedTypeSymbol.GetAttributes())
+                            {
+                                if (attribute.Is<ServiceCollectionMethod>())
+                                {
+                                    var methodName = attribute.GetValueForPropertyOfType<string>(nameof(ServiceCollectionMethod.MethodName));
+                                    generationConfiguration = (assemblyNamespace.ToDisplayString(), namedTypeSymbol.Name, methodName);
+
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                BuildGenerationConfiguration();
+
+                // If the generation configuration is still null, we can't continue.
+                if (generationConfiguration is null)
+                {
+                    _logger.WriteWarning("No generation configuration found. Exiting source generation. No source will be generated.");
+
+                    return;
+                }
+
+                var flatListOfTypes
+                    = (
+                        from @namespace in assemblyNamespaces
+                        from type in @namespace.GetConcreteTypes()
+                        let excludeTypeAttribute = type.GetFirstAttributeOfType<SaucyExclude>()
+                        where excludeTypeAttribute is null
+                        select type).ToList();
+
+                var explicitlyRegisteredTypes =
+                    from type in flatListOfTypes
+                    let addTypeAttribute = type.GetFirstAttributeOfType<SaucyAddType>()
+                    where addTypeAttribute is not null
+                    let scopeAttribute = type.GetFirstAttributeOfType<SaucyScope>()
+                    where scopeAttribute is not null
+                    select new { Type = type, ServiceScope = scopeAttribute.GetValueForPropertyOfType<ServiceScope>(nameof(SaucyScope.ServiceScope)) };
+
+                foreach (var registeredType in explicitlyRegisteredTypes)
+                {
+                    typeSymbols.Add(registeredType.Type, registeredType.ServiceScope);
+                }
+
+                // Now there's a list of types that have been explicitly registered, we can remove them from the list of types
+                // that we're going to scan for.
+                flatListOfTypes.RemoveAll(x => typeSymbols.ContainsKey(x));
+
+                List<(string, ServiceScope)> namespacesToIncludeAllTypesWithin = new();
+
+                // If the namespace is any of the namespaces in the assembly
+                // that we want to include everything in, do that
+                List<AttributeData> addNamespaceAttributes = assemblySymbol.GetAttributesOfType<SaucyAddNamespace>();
+
+                foreach (AttributeData attribute in addNamespaceAttributes)
+                {
+                    var namespaceToAdd = attribute.GetValueForPropertyOfType<string>(nameof(SaucyAddNamespace.Namespace));
+                    ServiceScope scope = attribute.GetValueForPropertyOfType<ServiceScope>(nameof(SaucyAddNamespace.Scope));
+                    namespacesToIncludeAllTypesWithin.Add((namespaceToAdd, scope));
+                }
+
+                foreach ((var namespaceToAdd, ServiceScope scope) in namespacesToIncludeAllTypesWithin)
+                {
+                    var includedNamespaces = assemblyNamespaces.Where(x => x.ToDisplayString().EndsWith(namespaceToAdd)).ToList();
+
+                    foreach (INamespaceSymbol? @namespace in includedNamespaces)
+                    {
+                        List<INamedTypeSymbol> types = @namespace.GetConcreteTypes();
+
+                        foreach (INamedTypeSymbol? type in types)
+                        {
+                            // Check to see if the type has a custom scope.
+                            AttributeData? scopeAttribute = type.GetFirstAttributeOfType<SaucyScope>();
+
+                            if (scopeAttribute is not null)
+                            {
+                                ServiceScope customScope = scopeAttribute.GetValueForPropertyOfType<ServiceScope>(nameof(SaucyScope.ServiceScope));
+                                typeSymbols.Add(type, customScope);
+
+                                continue;
+                            }
+
+                            // Type doesn't have a custom scope. Use the scope from the namespace.
+                            typeSymbols.Add(type, scope);
+                        }
                     }
                 }
             }
-
-            namespaces.AddRange(assemblyNamespaces);
         }
 
-        throw new NotImplementedException();
+        string registrationCode = GenerateRegistrationCode(generationConfiguration!.Value, typeSymbols);
 
-
-        // GenerationConfiguration? generationConfiguration = _generationConfigurationBuilder.Build(context.Compilation);
-        //
-        // if (generationConfiguration is null)
-        // {
-        //     _logger.WriteWarning("No generation configuration found. Exiting source generation. No source will be generated.");
-        //     _logger.WriteWarning($"Ensure you've added the [{nameof(ServiceCollectionMethod)}] attribute to a class in your project.");
-        //
-        //     return;
-        // }
-        //
-        // TypeSymbols typeSymbols = _typeSymbolsBuilder.Build(assembliesToScan);
-        //
-        // if (typeSymbols.Count == 0)
-        // {
-        //     _logger.WriteWarning("No type symbols found. Exiting source generation. No source will be generated.");
-        //     _logger.WriteWarning("Ensure that you've configured the Saucy library correctly.");
-        //
-        //     return;
-        // }
-        //
-        // var source = GenerateRegistrationCode(generationConfiguration, typeSymbols, context.Compilation.ObjectType);
-        //
-        // context.AddSource($"{generationConfiguration.Class}.Generated.cs", source);
+        context.AddSource("SaucyRegistrations_Generated.cs", registrationCode);
     }
 
-    private string GenerateRegistrationCode(GenerationConfiguration generationConfiguration, TypeSymbols typeSymbols, INamedTypeSymbol objectSymbol)
+    private string GenerateRegistrationCode((string Namespace, string Class, string Method) generationConfiguration, Dictionary<ITypeSymbol, ServiceScope> typeSymbols)
     {
         StringBuilder sourceBuilder = new();
 
@@ -177,16 +201,16 @@ namespace {generationConfiguration.Namespace}
             { ServiceScope.Transient, "serviceCollection.AddTransient" },
         };
 
-        foreach (Type type in typeSymbols)
+        foreach (var type in typeSymbols)
         {
-            ITypeSymbol typeSymbol = type.Symbol;
-            ServiceScope typeScope = type.ServiceScope;
+            ITypeSymbol typeSymbol = type.Key;
+            ServiceScope typeScope = type.Value;
 
             var fullyQualifiedTypeName = typeSymbol.ToDisplayString();
 
             INamedTypeSymbol? classBaseType = typeSymbol.BaseType;
 
-            var classHasBaseType = classBaseType is not null && !ReferenceEquals(classBaseType, objectSymbol);
+            var classHasBaseType = classBaseType is not null;
 
             if (classHasBaseType && typeSymbol.BaseType!.IsAbstract)
             {

@@ -42,7 +42,6 @@ internal class AssemblyBuilder
         _logger.WriteInformation($"Building assembly collection for assembly: {compilationAssembly.Name}");
         _logger.WriteInformation($"Checking if {compilationAssembly.Name} should be included in source generation...");
 
-        // I think I hate how the service scope is being passed around here.
         if (compilationAssembly.ShouldBeIncludedInSourceGeneration())
         {
             assemblies.Add(compilationAssembly);

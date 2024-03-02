@@ -3,7 +3,8 @@ using Saucy.Common.Enums;
 
 namespace Saucy.Console;
 
-[SaucyAddType(ServiceScope.Singleton)]
+[SaucyAddType]
+[SaucyScope(ServiceScope.Singleton)]
 public class ExplicitlyRegistered
 {
 }

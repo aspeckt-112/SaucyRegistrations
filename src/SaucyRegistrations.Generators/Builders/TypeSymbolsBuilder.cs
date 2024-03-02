@@ -133,12 +133,12 @@
 //
 //             _logger.WriteInformation($"Checking if {typeSymbol.Name} has a service scope attribute...");
 //
-//             AttributeData? serviceScopeAttribute = typeSymbol.GetFirstAttributeOfType<UseScope>();
+//             AttributeData? serviceScopeAttribute = typeSymbol.GetFirstAttributeOfType<SaucyScope>();
 //
 //             if (serviceScopeAttribute is not null)
 //             {
 //                 _logger.WriteInformation($"{typeSymbol.Name} has a service scope attribute.");
-//                 typeServiceScope = serviceScopeAttribute.GetValueForPropertyOfType<ServiceScope>(nameof(UseScope.ServiceScope));
+//                 typeServiceScope = serviceScopeAttribute.GetValueForPropertyOfType<ServiceScope>(nameof(SaucyScope.ServiceScope));
 //             }
 //             else
 //             {
