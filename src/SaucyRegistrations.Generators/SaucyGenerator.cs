@@ -32,7 +32,8 @@ public sealed class SaucyGenerator : ISourceGenerator
 
         IList<IAssemblySymbol> assembliesToScan = BuildListOfAssembliesToScan(context.Compilation);
 
-        if (!assembliesToScan.Any() || cancellationToken.IsCancellationRequested)
+        if (!assembliesToScan.Any()
+            || cancellationToken.IsCancellationRequested)
         {
             return;
         }
@@ -41,84 +42,18 @@ public sealed class SaucyGenerator : ISourceGenerator
 
         (string Namespace, string Class, string Method)? generationConfiguration = BuildGenerationConfiguration(allNamespacesInAllAssemblies);
 
-        if (generationConfiguration is null || cancellationToken.IsCancellationRequested)
+        if (generationConfiguration is null
+            || cancellationToken.IsCancellationRequested)
         {
             return;
         }
 
-        // Create an enumerable grouping of all namespaces in all assemblies, to prevent the need to iterate over the same namespaces multiple times.
-        var allNamespacesInAllAssembliesGrouped = allNamespacesInAllAssemblies.GroupBy(x => x.ContainingAssembly, SymbolEqualityComparer.Default).ToList();
+        List<IGrouping<ISymbol, INamespaceSymbol>> allNamespacesInAllAssembliesGrouped
+            = allNamespacesInAllAssemblies.GroupBy(x => x.ContainingAssembly, SymbolEqualityComparer.Default).ToList();
 
-        var typeSymbols = new Dictionary<ITypeSymbol, ServiceScope>(SymbolEqualityComparer.Default);
+        Dictionary<ITypeSymbol, ServiceScope> typeSymbols = BuildTypeSymbols(allNamespacesInAllAssembliesGrouped);
 
-        foreach (IAssemblySymbol assemblySymbol in assembliesToScan)
-        {
-            var assemblyNamespaces = allNamespacesInAllAssembliesGrouped.First(x => SymbolEqualityComparer.Default.Equals(x.Key, assemblySymbol)).ToList();
-
-            var flatListOfTypes
-                = (
-                    from @namespace in assemblyNamespaces
-                    from type in @namespace.GetInstantiableTypesInNamespace()
-                    let excludeTypeAttribute = type.FindAttributeOfType<SaucyExclude>()
-                    where excludeTypeAttribute is null
-                    select type).ToList();
-
-            // First, get all types that have been explicitly registered.
-            var explicitlyRegisteredTypes =
-                from type in flatListOfTypes
-                let addTypeAttribute = type.FindAttributeOfType<SaucyAddType>()
-                where addTypeAttribute is not null
-                let scopeAttribute = type.FindAttributeOfType<SaucyScope>()
-                where scopeAttribute is not null
-                select new { Type = type, ServiceScope = scopeAttribute.GetPropertyValueAsType<ServiceScope>(nameof(SaucyScope.ServiceScope)) };
-
-            foreach (var registeredType in explicitlyRegisteredTypes)
-            {
-                typeSymbols.Add(registeredType.Type, registeredType.ServiceScope);
-            }
-
-            // Next, get the namespaces that the user has specified to include all types within.
-            List<(string, ServiceScope)> namespacesToIncludeAllTypesWithin = new();
-
-            List<AttributeData> addNamespaceAttributes = assemblySymbol.FilterAttributesOfType<SaucyAddNamespace>();
-
-            foreach (AttributeData attribute in addNamespaceAttributes)
-            {
-                var namespaceToAdd = attribute.GetPropertyValueAsType<string>(nameof(SaucyAddNamespace.Namespace));
-                ServiceScope scope = attribute.GetPropertyValueAsType<ServiceScope>(nameof(SaucyAddNamespace.Scope));
-                namespacesToIncludeAllTypesWithin.Add((namespaceToAdd, scope));
-            }
-
-            foreach ((var namespaceToAdd, ServiceScope scope) in namespacesToIncludeAllTypesWithin)
-            {
-                var includedNamespaces = assemblyNamespaces.Where(x => x.ToDisplayString().EndsWith(namespaceToAdd)).ToList();
-
-                foreach (INamespaceSymbol? includedNamespace in includedNamespaces)
-                {
-                    List<INamedTypeSymbol> typesInNamespace = flatListOfTypes.Where(x => x.ContainingNamespace.ToDisplayString().EndsWith(includedNamespace.ToDisplayString())).ToList();
-
-                    foreach (INamedTypeSymbol? type in typesInNamespace)
-                    {
-                        // Check to see if the type has a custom scope.
-                        AttributeData? scopeAttribute = type.FindAttributeOfType<SaucyScope>();
-
-                        if (scopeAttribute is not null)
-                        {
-                            ServiceScope customScope = scopeAttribute.GetPropertyValueAsType<ServiceScope>(nameof(SaucyScope.ServiceScope));
-                            typeSymbols.Add(type, customScope);
-
-                            continue;
-                        }
-
-                        typeSymbols.Add(type, scope);
-                    }
-                }
-            }
-        }
-
-        var registrationCode = GenerateRegistrationCode(generationConfiguration!.Value, typeSymbols);
-
-        context.AddSource("SaucyRegistrations_Generated.cs", registrationCode);
+        context.AddSource("SaucyRegistrations_Generated.cs", GenerateRegistrationCode(generationConfiguration!.Value, typeSymbols));
     }
 
     private IList<IAssemblySymbol> BuildListOfAssembliesToScan(Compilation compilation)
@@ -158,6 +93,80 @@ public sealed class SaucyGenerator : ISourceGenerator
         }
 
         return null;
+    }
+
+    private Dictionary<ITypeSymbol, ServiceScope> BuildTypeSymbols(List<IGrouping<ISymbol, INamespaceSymbol>> assemblyNamespaceGroupings)
+    {
+        var result = new Dictionary<ITypeSymbol, ServiceScope>(SymbolEqualityComparer.Default);
+
+        foreach (IGrouping<ISymbol, INamespaceSymbol>? grouping in assemblyNamespaceGroupings)
+        {
+            ISymbol assembly = grouping.Key;
+            var namespaces = grouping.ToList();
+
+            var flatListOfTypes
+                = (
+                    from @namespace in namespaces
+                    from type in @namespace.GetInstantiableTypesInNamespace()
+                    let excludeTypeAttribute = type.FindAttributeOfType<SaucyExclude>()
+                    where excludeTypeAttribute is null
+                    select type).ToList();
+
+            // First, get all types that have been explicitly registered.
+            var explicitlyRegisteredTypes =
+                from type in flatListOfTypes
+                let addTypeAttribute = type.FindAttributeOfType<SaucyAddType>()
+                where addTypeAttribute is not null
+                let scopeAttribute = type.FindAttributeOfType<SaucyScope>()
+                where scopeAttribute is not null
+                select new { Type = type, ServiceScope = scopeAttribute.GetPropertyValueAsType<ServiceScope>(nameof(SaucyScope.ServiceScope)) };
+
+            foreach (var registeredType in explicitlyRegisteredTypes)
+            {
+                result.Add(registeredType.Type, registeredType.ServiceScope);
+            }
+
+            // Next, get the namespaces that the user has specified to include all types within.
+            List<(string Namespace, ServiceScope DefaultServiceScope)> namespacesToIncludeAllTypesWithin = new();
+
+            List<AttributeData> addNamespaceAttributes = assembly.FilterAttributesOfType<SaucyAddNamespace>();
+
+            foreach (AttributeData attribute in addNamespaceAttributes)
+            {
+                var namespaceToAdd = attribute.GetPropertyValueAsType<string>(nameof(SaucyAddNamespace.Namespace));
+                ServiceScope scope = attribute.GetPropertyValueAsType<ServiceScope>(nameof(SaucyAddNamespace.Scope));
+                namespacesToIncludeAllTypesWithin.Add((namespaceToAdd, scope));
+            }
+
+            foreach ((var namespaceToAdd, ServiceScope scope) in namespacesToIncludeAllTypesWithin)
+            {
+                var includedNamespaces = namespaces.Where(x => x.ToDisplayString().EndsWith(namespaceToAdd)).ToList();
+
+                foreach (INamespaceSymbol? includedNamespace in includedNamespaces)
+                {
+                    List<INamedTypeSymbol> typesInNamespace
+                        = flatListOfTypes.Where(x => x.ContainingNamespace.ToDisplayString().EndsWith(includedNamespace.ToDisplayString())).ToList();
+
+                    foreach (INamedTypeSymbol? type in typesInNamespace)
+                    {
+                        // Check to see if the type has a custom scope.
+                        AttributeData? scopeAttribute = type.FindAttributeOfType<SaucyScope>();
+
+                        if (scopeAttribute is not null)
+                        {
+                            ServiceScope customScope = scopeAttribute.GetPropertyValueAsType<ServiceScope>(nameof(SaucyScope.ServiceScope));
+                            result.Add(type, customScope);
+
+                            continue;
+                        }
+
+                        result.Add(type, scope);
+                    }
+                }
+            }
+        }
+
+        return result;
     }
 
     private string GenerateRegistrationCode((string Namespace, string Class, string Method) generationConfiguration, Dictionary<ITypeSymbol, ServiceScope> typeSymbols)
