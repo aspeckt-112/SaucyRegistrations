@@ -10,7 +10,6 @@ using Saucy.Common.Enums;
 
 using SaucyRegistrations.Generators.Builders;
 using SaucyRegistrations.Generators.Extensions;
-using SaucyRegistrations.Generators.Logging;
 
 namespace SaucyRegistrations.Generators;
 
@@ -18,29 +17,11 @@ namespace SaucyRegistrations.Generators;
 /// The source generator for the Saucy library.
 /// </summary>
 [Generator]
-public class SaucyGenerator : ISourceGenerator
+public sealed class SaucyGenerator : ISourceGenerator
 {
-    private readonly Logger _logger;
-    private readonly GenerationConfigurationBuilder _generationConfigurationBuilder;
-    private readonly AssemblyBuilder _assemblyBuilder;
-    // private readonly TypeSymbolsBuilder _typeSymbolsBuilder;
+    private readonly AssemblyBuilder _assemblyBuilder = new();
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="SaucyGenerator" /> class.
-    /// </summary>
-    public SaucyGenerator()
-    {
-        _logger = new Logger();
-        _generationConfigurationBuilder = new GenerationConfigurationBuilder(_logger);
-        _assemblyBuilder = new AssemblyBuilder(_logger);
-        // _typeSymbolsBuilder = new TypeSymbolsBuilder(_logger);
-    }
-
-    /// <summary>
-    /// The initialization method for the source generator.
-    /// </summary>
-    /// <remarks>Not used in this source generator.</remarks>
-    /// <param name="context">The generator initialization context.</param>
+    /// <inheritdoc />
     public void Initialize(GeneratorInitializationContext context)
     {
         // No initialization required
@@ -49,18 +30,14 @@ public class SaucyGenerator : ISourceGenerator
     /// <inheritdoc />
     public void Execute(GeneratorExecutionContext context)
     {
-        _logger.WriteInformation("Starting source generation...");
+        IList<IAssemblySymbol> assembliesToScan = _assemblyBuilder.Build(context.Compilation);
 
-        Assemblies assembliesToScan = _assemblyBuilder.Build(context.Compilation);
-
-        if (assembliesToScan.Count == 0)
+        if (!assembliesToScan.Any())
         {
-            _logger.WriteWarning("No assemblies found. Exiting source generation. No source will be generated.");
-
             return;
         }
 
-        Dictionary<ITypeSymbol, ServiceScope> typeSymbols = new();
+        var typeSymbols = new Dictionary<ITypeSymbol, ServiceScope>();
 
         (string Namespace, string Class, string Method)? generationConfiguration = null;
 
@@ -92,11 +69,8 @@ public class SaucyGenerator : ISourceGenerator
 
                 BuildGenerationConfiguration();
 
-                // If the generation configuration is still null, we can't continue.
                 if (generationConfiguration is null)
                 {
-                    _logger.WriteWarning("No generation configuration found. Exiting source generation. No source will be generated.");
-
                     return;
                 }
 
@@ -121,14 +95,10 @@ public class SaucyGenerator : ISourceGenerator
                     typeSymbols.Add(registeredType.Type, registeredType.ServiceScope);
                 }
 
-                // Now there's a list of types that have been explicitly registered, we can remove them from the list of types
-                // that we're going to scan for.
                 flatListOfTypes.RemoveAll(x => typeSymbols.ContainsKey(x));
 
                 List<(string, ServiceScope)> namespacesToIncludeAllTypesWithin = new();
 
-                // If the namespace is any of the namespaces in the assembly
-                // that we want to include everything in, do that
                 List<AttributeData> addNamespaceAttributes = assemblySymbol.GetAttributesOfType<SaucyAddNamespace>();
 
                 foreach (AttributeData attribute in addNamespaceAttributes)
@@ -148,7 +118,6 @@ public class SaucyGenerator : ISourceGenerator
 
                         foreach (INamedTypeSymbol? type in types)
                         {
-                            // Check to see if the tpype should be excluded
                             AttributeData? excludeTypeAttribute = type.GetFirstAttributeOfType<SaucyExclude>();
 
                             if (excludeTypeAttribute is not null)
@@ -167,7 +136,6 @@ public class SaucyGenerator : ISourceGenerator
                                 continue;
                             }
 
-                            // Type doesn't have a custom scope. Use the scope from the namespace.
                             typeSymbols.Add(type, scope);
                         }
                     }
@@ -175,7 +143,7 @@ public class SaucyGenerator : ISourceGenerator
             }
         }
 
-        string registrationCode = GenerateRegistrationCode(generationConfiguration!.Value, typeSymbols);
+        var registrationCode = GenerateRegistrationCode(generationConfiguration!.Value, typeSymbols);
 
         context.AddSource("SaucyRegistrations_Generated.cs", registrationCode);
     }
@@ -202,10 +170,10 @@ namespace {generationConfiguration.Namespace}
         {
             { ServiceScope.Singleton, "serviceCollection.AddSingleton" },
             { ServiceScope.Scoped, "serviceCollection.AddScoped" },
-            { ServiceScope.Transient, "serviceCollection.AddTransient" },
+            { ServiceScope.Transient, "serviceCollection.AddTransient" }
         };
 
-        foreach (var type in typeSymbols)
+        foreach (KeyValuePair<ITypeSymbol, ServiceScope> type in typeSymbols)
         {
             ITypeSymbol typeSymbol = type.Key;
             ServiceScope typeScope = type.Value;

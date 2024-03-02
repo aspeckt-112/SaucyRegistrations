@@ -5,15 +5,15 @@
 /// </summary>
 /// <param name="name">The name of the parameter.</param>
 /// <param name="value">The value of the parameter.</param>
-public class AttributeParameter(string name, object? value)
+internal sealed class AttributeParameter(string name, object? value)
 {
     /// <summary>
     /// Gets the name of the parameter.
     /// </summary>
-    public string Name { get; private set; } = name;
+    public string Name { get; } = name;
 
     /// <summary>
     /// Gets the value of the parameter.
     /// </summary>
-    public object? Value { get; private set; } = value;
+    public object? Value { get; } = value;
 }

@@ -4,7 +4,6 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 
 using Saucy.Common.Attributes;
-using Saucy.Common.Enums;
 
 namespace SaucyRegistrations.Generators.Extensions;
 
@@ -14,23 +13,17 @@ namespace SaucyRegistrations.Generators.Extensions;
 /// <seealso cref="ISymbol" />
 internal static class SymbolExtensions
 {
+    /// <summary>
+    /// Determines whether the specified <see cref="ISymbol" /> should be included in source generation.
+    /// </summary>
+    /// <param name="symbol">The <see cref="ISymbol" /> to check.</param>
+    /// <returns>
+    /// <c>true</c> if the specified <see cref="ISymbol" /> should be included in source generation; otherwise,
+    /// <c>false</c>.
+    /// </returns>
     internal static bool ShouldBeIncludedInSourceGeneration(this ISymbol symbol)
     {
         return symbol.HasAttributeOfType<SaucyInclude>();
-    }
-
-    /// <summary>
-    /// Determines whether the specified <see cref="ISymbol" /> has an attribute of a given type.
-    /// </summary>
-    /// <param name="symbol">The <see cref="ISymbol" /> to check.</param>
-    /// <typeparam name="T">The type of the attribute to check for.</typeparam>
-    /// <returns>
-    /// <c>true</c> if the specified <see cref="ISymbol" /> has an attribute of the given type; otherwise,
-    /// <c>false</c>.
-    /// </returns>
-    internal static bool HasAttributeOfType<T>(this ISymbol symbol)
-    {
-        return symbol.GetAttributes().Any(x => x.AttributeClass?.Name == typeof(T).Name);
     }
 
     /// <summary>
@@ -53,5 +46,19 @@ internal static class SymbolExtensions
     internal static List<AttributeData> GetAttributesOfType<T>(this ISymbol symbol)
     {
         return symbol.GetAttributes().Where(x => x.AttributeClass?.Name == typeof(T).Name).ToList();
+    }
+
+    /// <summary>
+    /// Determines whether the specified <see cref="ISymbol" /> has an attribute of a given type.
+    /// </summary>
+    /// <param name="symbol">The <see cref="ISymbol" /> to check.</param>
+    /// <typeparam name="T">The type of the attribute to check for.</typeparam>
+    /// <returns>
+    /// <c>true</c> if the specified <see cref="ISymbol" /> has an attribute of the given type; otherwise,
+    /// <c>false</c>.
+    /// </returns>
+    private static bool HasAttributeOfType<T>(this ISymbol symbol)
+    {
+        return symbol.GetAttributes().Any(x => x.AttributeClass?.Name == typeof(T).Name);
     }
 }
