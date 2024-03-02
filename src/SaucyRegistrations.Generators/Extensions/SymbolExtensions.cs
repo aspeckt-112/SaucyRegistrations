@@ -38,7 +38,7 @@ internal static class SymbolExtensions
     }
 
     /// <summary>
-    /// Gets the attributes with a given type.
+    /// Gets the attributes of a given type.
     /// </summary>
     /// <param name="symbol">The <see cref="ISymbol" /> to get the attributes from.</param>
     /// <typeparam name="T">The type of the attribute to get.</typeparam>

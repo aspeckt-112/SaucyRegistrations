@@ -63,6 +63,7 @@ public sealed class SaucyGenerator : ISourceGenerator
                     where excludeTypeAttribute is null
                     select type).ToList();
 
+            // First, get all types that have been explicitly registered.
             var explicitlyRegisteredTypes =
                 from type in flatListOfTypes
                 let addTypeAttribute = type.GetFirstAttributeOfType<SaucyAddType>()
@@ -76,8 +77,7 @@ public sealed class SaucyGenerator : ISourceGenerator
                 typeSymbols.Add(registeredType.Type, registeredType.ServiceScope);
             }
 
-            flatListOfTypes.RemoveAll(x => typeSymbols.ContainsKey(x));
-
+            // Next, get the namespaces that the user has specified to include all types within.
             List<(string, ServiceScope)> namespacesToIncludeAllTypesWithin = new();
 
             List<AttributeData> addNamespaceAttributes = assemblySymbol.GetAttributesOfType<SaucyAddNamespace>();
@@ -93,19 +93,12 @@ public sealed class SaucyGenerator : ISourceGenerator
             {
                 var includedNamespaces = assemblyNamespaces.Where(x => x.ToDisplayString().EndsWith(namespaceToAdd)).ToList();
 
-                foreach (INamespaceSymbol? @namespace in includedNamespaces)
+                foreach (INamespaceSymbol? includedNamespace in includedNamespaces)
                 {
-                    List<INamedTypeSymbol> types = @namespace.GetConcreteTypes();
+                    List<INamedTypeSymbol> typesInNamespace = flatListOfTypes.Where(x => x.ContainingNamespace.ToDisplayString().EndsWith(includedNamespace.ToDisplayString())).ToList();
 
-                    foreach (INamedTypeSymbol? type in types)
+                    foreach (INamedTypeSymbol? type in typesInNamespace)
                     {
-                        AttributeData? excludeTypeAttribute = type.GetFirstAttributeOfType<SaucyExclude>();
-
-                        if (excludeTypeAttribute is not null)
-                        {
-                            continue;
-                        }
-
                         // Check to see if the type has a custom scope.
                         AttributeData? scopeAttribute = type.GetFirstAttributeOfType<SaucyScope>();
 
