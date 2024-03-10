@@ -4,6 +4,7 @@
 
 using Saucy.Common.Attributes;
 using Saucy.Common.Enums;
+using Saucy.Console;
 
 [assembly: SaucyInclude]
 [assembly: SaucyAddNamespace(nameof(Saucy.Console.Builders), ServiceScope.Transient)]

@@ -30,7 +30,36 @@ public sealed class SaucyGenerator : ISourceGenerator
     {
         CancellationToken cancellationToken = context.CancellationToken;
 
-        IList<IAssemblySymbol> assembliesToScan = BuildListOfAssembliesToScan(context.Compilation);
+        Compilation compilation = context.Compilation;
+
+        var entryPoint = compilation.GetEntryPoint(cancellationToken);
+
+        if (entryPoint is null)
+        {
+            return;
+        }
+
+        (string Namespace, string Class, string Method)? generationConfiguration = null;
+
+        var entryPointMethods = entryPoint.ReceiverType.GetMembers().OfType<IMethodSymbol>();
+
+        foreach (var method in entryPointMethods)
+        {
+            var registrationTargetAttribute = method.FindAttributeOfType<SaucyRegistrationTarget>();
+
+            if (registrationTargetAttribute is not null)
+            {
+                generationConfiguration = new (entryPoint.ReceiverType.ContainingNamespace.ToDisplayString(), entryPoint.ReceiverType.Name, method.Name);
+                break;
+            }
+        }
+
+        if (generationConfiguration is null)
+        {
+            return;
+        }
+
+        IList<IAssemblySymbol> assembliesToScan = BuildListOfAssembliesToScan(compilation);
 
         if (!assembliesToScan.Any()
             || cancellationToken.IsCancellationRequested)
@@ -40,20 +69,12 @@ public sealed class SaucyGenerator : ISourceGenerator
 
         var allNamespacesInAllAssemblies = assembliesToScan.SelectMany(x => x.GlobalNamespace.GetAllNestedNamespaces()).ToList();
 
-        (string Namespace, string Class, string Method)? generationConfiguration = BuildGenerationConfiguration(allNamespacesInAllAssemblies);
-
-        if (generationConfiguration is null
-            || cancellationToken.IsCancellationRequested)
-        {
-            return;
-        }
-
         List<IGrouping<ISymbol, INamespaceSymbol>> allNamespacesInAllAssembliesGrouped
             = allNamespacesInAllAssemblies.GroupBy(x => x.ContainingAssembly, SymbolEqualityComparer.Default).ToList();
 
         Dictionary<ITypeSymbol, ServiceScope> typeSymbols = BuildTypeSymbols(allNamespacesInAllAssembliesGrouped);
 
-        context.AddSource("SaucyRegistrations_Generated.cs", GenerateRegistrationCode(generationConfiguration!.Value, typeSymbols));
+        context.AddSource($"{generationConfiguration.Value.Class}_Generated.cs", GenerateRegistrationCode(generationConfiguration!.Value, typeSymbols));
     }
 
     private IList<IAssemblySymbol> BuildListOfAssembliesToScan(Compilation compilation)
@@ -72,27 +93,6 @@ public sealed class SaucyGenerator : ISourceGenerator
         assemblies.AddRange(referencedAssemblies);
 
         return assemblies;
-    }
-
-    private (string Namespace, string Class, string Method)? BuildGenerationConfiguration(IList<INamespaceSymbol> namespaces)
-    {
-        foreach (INamespaceSymbol? assemblyNamespace in namespaces)
-        {
-            foreach (INamedTypeSymbol? namedTypeSymbol in assemblyNamespace.GetTypeMembers())
-            {
-                foreach (AttributeData? attribute in namedTypeSymbol.GetAttributes())
-                {
-                    if (attribute.Is<ServiceCollectionMethod>())
-                    {
-                        var methodName = attribute.GetPropertyValueAsType<string>(nameof(ServiceCollectionMethod.MethodName));
-
-                        return new ValueTuple<string, string, string>(assemblyNamespace.ToDisplayString(), namedTypeSymbol.Name, methodName);
-                    }
-                }
-            }
-        }
-
-        return null;
     }
 
     private Dictionary<ITypeSymbol, ServiceScope> BuildTypeSymbols(List<IGrouping<ISymbol, INamespaceSymbol>> assemblyNamespaceGroupings)
@@ -179,9 +179,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace {generationConfiguration.Namespace}
 {{
-	public static partial class {generationConfiguration.Class}
+	static partial class {generationConfiguration.Class}
 	{{
-		public static void {generationConfiguration.Method}(IServiceCollection serviceCollection)
+		static partial void {generationConfiguration.Method}(IServiceCollection serviceCollection)
 		{{"
         );
 
@@ -191,7 +191,7 @@ namespace {generationConfiguration.Namespace}
         {
             { ServiceScope.Singleton, "serviceCollection.AddSingleton" },
             { ServiceScope.Scoped, "serviceCollection.AddScoped" },
-            { ServiceScope.Transient, "serviceCollection.AddTransient" }
+            { ServiceScope.Transient, "serviceCollection.AddTransient" },
         };
 
         foreach (KeyValuePair<ITypeSymbol, ServiceScope> type in typeSymbols)
