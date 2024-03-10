@@ -4,7 +4,6 @@ using Saucy.Common.Attributes;
 
 namespace Saucy.Console;
 
-[ServiceCollectionMethod("AddRegistrations")]
 public static partial class Program
 {
     public static void Main(string[] args)
@@ -12,4 +11,7 @@ public static partial class Program
         IServiceCollection serviceCollection = new ServiceCollection();
         AddRegistrations(serviceCollection);
     }
+
+    [SaucyRegistrationTarget]
+    static partial void AddRegistrations(IServiceCollection serviceCollection);
 }
