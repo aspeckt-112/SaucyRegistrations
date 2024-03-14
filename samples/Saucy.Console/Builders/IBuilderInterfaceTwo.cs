@@ -1,6 +1,6 @@
 namespace Saucy.Console.Builders;
 
-public class ConcreteRegisteredBuilder
+public interface IBuilderInterfaceTwo
 {
     
 }

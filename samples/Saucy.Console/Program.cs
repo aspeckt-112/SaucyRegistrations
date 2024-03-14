@@ -1,17 +1,14 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
-using Saucy.Common.Attributes;
+using Saucy.Console.Services;
 
-namespace Saucy.Console;
+var serviceCollection = new ServiceCollection();
 
-public static partial class Program
-{
-    public static void Main(string[] args)
-    {
-        IServiceCollection serviceCollection = new ServiceCollection();
-        AddRegistrations(serviceCollection);
-    }
+serviceCollection.AddSaucyConsoleServices();
 
-    [SaucyRegistrationTarget]
-    static partial void AddRegistrations(IServiceCollection serviceCollection);
-}
+var serviceProvider = serviceCollection.BuildServiceProvider();
+
+var service = serviceProvider.GetRequiredService<IncludedServiceOne>();
+
+
+Console.ReadLine();
