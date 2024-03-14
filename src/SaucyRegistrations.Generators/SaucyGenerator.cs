@@ -1,243 +1,145 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading;
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
 
-using Saucy.Common.Attributes;
-using Saucy.Common.Enums;
-
+using SaucyRegistrations.Generators.CodeConstants;
+using SaucyRegistrations.Generators.Comparers;
 using SaucyRegistrations.Generators.Extensions;
+using SaucyRegistrations.Generators.Infrastructure;
+using SaucyRegistrations.Generators.Models;
 
-namespace SaucyRegistrations.Generators;
-
-/// <summary>
-/// The source generator for the Saucy library.
-/// </summary>
-[Generator]
-public sealed class SaucyGenerator : ISourceGenerator
+namespace SaucyRegistrations.Generators
 {
-    /// <inheritdoc />
-    public void Initialize(GeneratorInitializationContext context)
+    /// <summary>
+    /// The source generator for the Saucy library.
+    /// </summary>
+    [Generator]
+    public sealed class SaucyGenerator : IIncrementalGenerator
     {
-        // No initialization required
-    }
-
-    /// <inheritdoc />
-    public void Execute(GeneratorExecutionContext context)
-    {
-        CancellationToken cancellationToken = context.CancellationToken;
-
-        Compilation compilation = context.Compilation;
-
-        var entryPoint = compilation.GetEntryPoint(cancellationToken);
-
-        if (entryPoint is null)
+        public void Initialize(IncrementalGeneratorInitializationContext context)
         {
-            return;
-        }
+            context.RegisterPostInitializationOutput(AddSource);
 
-        (string Namespace, string Class, string Method)? generationConfiguration = null;
+            IncrementalValueProvider<string> assemblyName = context.CompilationProvider.GetAssemblyName();
 
-        var entryPointMethods = entryPoint.ReceiverType.GetMembers().OfType<IMethodSymbol>();
+            IncrementalValueProvider<ImmutableArray<ServiceDefinition>> assemblyAttributes = context.CompilationProvider.GetNamespacesToInclude();
 
-        foreach (var method in entryPointMethods)
-        {
-            var registrationTargetAttribute = method.FindAttributeOfType<SaucyRegistrationTarget>();
+            IncrementalValuesProvider<ServiceDefinition> syntax = context.SyntaxProvider.CreateSyntaxProvider(NodeIsClassDeclarationWithSaucyAttributes, GetServiceDetails);
 
-            if (registrationTargetAttribute is not null)
-            {
-                generationConfiguration = new (entryPoint.ReceiverType.ContainingNamespace.ToDisplayString(), entryPoint.ReceiverType.Name, method.Name);
-                break;
-            }
-        }
+            IncrementalValueProvider<((ImmutableArray<ServiceDefinition> Left, string Right) Left, ImmutableArray<ServiceDefinition> Right)> provider
+                = syntax.Collect().Combine(assemblyName).Combine(assemblyAttributes);
 
-        if (generationConfiguration is null)
-        {
-            return;
-        }
-
-        IList<IAssemblySymbol> assembliesToScan = BuildListOfAssembliesToScan(compilation);
-
-        if (!assembliesToScan.Any()
-            || cancellationToken.IsCancellationRequested)
-        {
-            return;
-        }
-
-        var allNamespacesInAllAssemblies = assembliesToScan.SelectMany(x => x.GlobalNamespace.GetAllNestedNamespaces()).ToList();
-
-        List<IGrouping<ISymbol, INamespaceSymbol>> allNamespacesInAllAssembliesGrouped
-            = allNamespacesInAllAssemblies.GroupBy(x => x.ContainingAssembly, SymbolEqualityComparer.Default).ToList();
-
-        Dictionary<ITypeSymbol, ServiceScope> typeSymbols = BuildTypeSymbols(allNamespacesInAllAssembliesGrouped);
-
-        context.AddSource($"{generationConfiguration.Value.Class}_Generated.cs", GenerateRegistrationCode(generationConfiguration!.Value, typeSymbols));
-    }
-
-    private IList<IAssemblySymbol> BuildListOfAssembliesToScan(Compilation compilation)
-    {
-        var assemblies = new List<IAssemblySymbol>();
-
-        IAssemblySymbol compilationAssembly = compilation.Assembly;
-
-        if (compilationAssembly.ShouldBeIncludedInSourceGeneration())
-        {
-            assemblies.Add(compilationAssembly);
-        }
-
-        var referencedAssemblies = compilation.SourceModule.ReferencedAssemblySymbols.Where(x => x.ShouldBeIncludedInSourceGeneration()).ToList();
-
-        assemblies.AddRange(referencedAssemblies);
-
-        return assemblies;
-    }
-
-    private Dictionary<ITypeSymbol, ServiceScope> BuildTypeSymbols(List<IGrouping<ISymbol, INamespaceSymbol>> assemblyNamespaceGroupings)
-    {
-        var result = new Dictionary<ITypeSymbol, ServiceScope>(SymbolEqualityComparer.Default);
-
-        foreach (IGrouping<ISymbol, INamespaceSymbol>? grouping in assemblyNamespaceGroupings)
-        {
-            ISymbol assembly = grouping.Key;
-            var namespaces = grouping.ToList();
-
-            var flatListOfTypes
-                = (
-                    from @namespace in namespaces
-                    from type in @namespace.GetInstantiableTypesInNamespace()
-                    let excludeTypeAttribute = type.FindAttributeOfType<SaucyExclude>()
-                    where excludeTypeAttribute is null
-                    select type).ToList();
-
-            // First, get all types that have been explicitly registered.
-            var explicitlyRegisteredTypes =
-                from type in flatListOfTypes
-                let addTypeAttribute = type.FindAttributeOfType<SaucyAddType>()
-                where addTypeAttribute is not null
-                let scopeAttribute = type.FindAttributeOfType<SaucyScope>()
-                where scopeAttribute is not null
-                select new { Type = type, ServiceScope = scopeAttribute.GetPropertyValueAsType<ServiceScope>(nameof(SaucyScope.ServiceScope)) };
-
-            foreach (var registeredType in explicitlyRegisteredTypes)
-            {
-                result.Add(registeredType.Type, registeredType.ServiceScope);
-            }
-
-            // Next, get the namespaces that the user has specified to include all types within.
-            List<(string Namespace, ServiceScope DefaultServiceScope)> namespacesToIncludeAllTypesWithin = new();
-
-            List<AttributeData> addNamespaceAttributes = assembly.FilterAttributesOfType<SaucyAddNamespace>();
-
-            foreach (AttributeData attribute in addNamespaceAttributes)
-            {
-                var namespaceToAdd = attribute.GetPropertyValueAsType<string>(nameof(SaucyAddNamespace.Namespace));
-                ServiceScope scope = attribute.GetPropertyValueAsType<ServiceScope>(nameof(SaucyAddNamespace.Scope));
-                namespacesToIncludeAllTypesWithin.Add((namespaceToAdd, scope));
-            }
-
-            foreach ((var namespaceToAdd, ServiceScope scope) in namespacesToIncludeAllTypesWithin)
-            {
-                var includedNamespaces = namespaces.Where(x => x.ToDisplayString().EndsWith(namespaceToAdd)).ToList();
-
-                foreach (INamespaceSymbol? includedNamespace in includedNamespaces)
+            context.RegisterSourceOutput(
+                provider, (ctx, pair) =>
                 {
-                    List<INamedTypeSymbol> typesInNamespace
-                        = flatListOfTypes.Where(x => x.ContainingNamespace.ToDisplayString().EndsWith(includedNamespace.ToDisplayString())).ToList();
+                    ImmutableArray<ServiceDefinition> servicesFromNamespace = pair.Right;
+                    ImmutableArray<ServiceDefinition> servicesFromAttributes = pair.Left.Left;
+                    var assemblyName = pair.Left.Right;
 
-                    foreach (INamedTypeSymbol? type in typesInNamespace)
+                    var servicesToRegister = new HashSet<ServiceDefinition>(servicesFromAttributes, new ServiceDefinitionComparer());
+
+                    // Any explicitly registered services will take precedence over namespace-registered services. This will happen if the user has chosen to change the scope of a service that's also registered in a namespace.
+                    foreach (ServiceDefinition service in servicesFromNamespace)
                     {
-                        // Check to see if the type has a custom scope.
-                        AttributeData? scopeAttribute = type.FindAttributeOfType<SaucyScope>();
+                        servicesToRegister.Add(service);
+                    }
 
-                        if (scopeAttribute is not null)
-                        {
-                            ServiceScope customScope = scopeAttribute.GetPropertyValueAsType<ServiceScope>(nameof(SaucyScope.ServiceScope));
-                            result.Add(type, customScope);
+                    Generate(ctx, assemblyName, servicesToRegister);
+                }
+            );
+        }
 
-                            continue;
-                        }
+        private void AddSource(IncrementalGeneratorPostInitializationContext ctx)
+        {
+            var attributeSourceCode = new StringBuilder().Append(AttributeConstants.SaucyIncludeNamespaceAttribute)
+                                                         .AppendTwoNewLines()
+                                                         .Append(AttributeConstants.SaucyIncludeAttribute)
+                                                         .ToString();
 
-                        result.Add(type, scope);
+            ctx.AddSource("Saucy.Attributes.g.cs", SourceText.From(attributeSourceCode, Encoding.UTF8));
+            ctx.AddSource("Saucy.Enums.g.cs", SourceText.From(EnumConstants.ServiceScopeEnum, Encoding.UTF8));
+        }
+
+        private static bool NodeIsClassDeclarationWithSaucyAttributes(SyntaxNode node, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            return node is ClassDeclarationSyntax cds
+                   && cds.AttributeLists.SelectMany(x => x.Attributes).Any(y => y.Name.ToString() == AttributeConstants.SaucyIncludeAttributeName);
+        }
+
+        private static ServiceDefinition GetServiceDetails(GeneratorSyntaxContext context, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var symbol = (context.SemanticModel.GetDeclaredSymbol(context.Node) as INamedTypeSymbol) !;
+
+            AttributeData saucyIncludeAttribute = symbol.GetAttributes().First(x => x.AttributeClass?.Name == AttributeConstants.SaucyIncludeAttributeName);
+            var serviceScope = (int)saucyIncludeAttribute.ConstructorArguments[0].Value!;
+
+            return new ServiceDefinition(symbol.GetFullyQualifiedName(), serviceScope, symbol.GetContracts());
+        }
+
+        public static void Generate(SourceProductionContext context, string assemblyName, HashSet<ServiceDefinition> servicesToRegister)
+        {
+            context.CancellationToken.ThrowIfCancellationRequested();
+
+            var writer = new SourceWriter();
+
+            Dictionary<int, string> serviceScopeEnumValues = new()
+            {
+                { EnumConstants.SingletonValue, "serviceCollection.AddSingleton" },
+                { EnumConstants.TransientValue, "serviceCollection.AddTransient" },
+                { EnumConstants.ScopedValue, "serviceCollection.AddScoped" },
+            };
+
+            writer.AppendLine($"// <auto-generated by Saucy on {DateTime.Now} />")
+                  .AppendLine("using Microsoft.Extensions.DependencyInjection;")
+                  .AppendLine()
+                  .AppendLine("public static class ServiceCollectionExtensions")
+                  .AppendLine("{")
+                  .Indent()
+                  .AppendLine($"public static IServiceCollection Add{assemblyName}Services(this IServiceCollection services)")
+                  .AppendLine("{")
+                  .Indent();
+
+            var serviceCount = servicesToRegister.Count;
+
+            if (serviceCount == 0)
+            {
+                writer.AppendLine("return services;");
+            }
+
+            foreach (ServiceDefinition serviceDefinition in servicesToRegister)
+            {
+                // TODO support keyed services?
+                var serviceScope = (int)serviceDefinition.ServiceScope;
+                if (serviceDefinition.HasContracts)
+                {
+                    // Register each contract for the service to support multiple interfaces.
+                    foreach (var contractName in serviceDefinition.ContractNames)
+                    {
+                        writer.AppendLine($"{serviceScopeEnumValues[serviceScope]}<{contractName}, {serviceDefinition.FullyQualifiedClassName}>();");
                     }
                 }
+                else
+                {
+                    writer.AppendLine($"{serviceScopeEnumValues[serviceScope]}<{serviceDefinition.FullyQualifiedClassName}>();");
+                }
             }
+
+            writer.AppendLine("return services;");
+
+            writer.UnIndent().AppendLine('}').UnIndent().AppendLine('}');
+
+            context.AddSource("SaucyRegistrations.g.cs", SourceText.From(writer.ToString(), Encoding.UTF8));
         }
-
-        return result;
-    }
-
-    private string GenerateRegistrationCode((string Namespace, string Class, string Method) generationConfiguration, Dictionary<ITypeSymbol, ServiceScope> typeSymbols)
-    {
-        StringBuilder sourceBuilder = new();
-
-        sourceBuilder.Append(
-            $@"//<auto-generated by Saucy on {DateTime.Now} />
-using Microsoft.Extensions.DependencyInjection;
-
-namespace {generationConfiguration.Namespace}
-{{
-	static partial class {generationConfiguration.Class}
-	{{
-		static partial void {generationConfiguration.Method}(IServiceCollection serviceCollection)
-		{{"
-        );
-
-        sourceBuilder.AppendLine();
-
-        Dictionary<ServiceScope, string> serviceScopeToMethodNameMap = new()
-        {
-            { ServiceScope.Singleton, "serviceCollection.AddSingleton" },
-            { ServiceScope.Scoped, "serviceCollection.AddScoped" },
-            { ServiceScope.Transient, "serviceCollection.AddTransient" },
-        };
-
-        foreach (KeyValuePair<ITypeSymbol, ServiceScope> type in typeSymbols)
-        {
-            ITypeSymbol typeSymbol = type.Key;
-            ServiceScope typeScope = type.Value;
-
-            var fullyQualifiedTypeName = typeSymbol.ToDisplayString();
-
-            INamedTypeSymbol? classBaseType = typeSymbol.BaseType;
-
-            var classHasAbstractBaseType = classBaseType is not null && classBaseType.IsAbstract;
-
-            if (classHasAbstractBaseType)
-            {
-                var fullyQualifiedBaseTypeName = typeSymbol.BaseType!.ToDisplayString();
-
-                sourceBuilder.AppendLine($@"            {serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedBaseTypeName}, {fullyQualifiedTypeName}>();");
-            }
-
-            var classHasInterfaces = typeSymbol.Interfaces.Length > 0;
-
-            switch (classHasInterfaces)
-            {
-                case true:
-                    {
-                        foreach (INamedTypeSymbol @interface in typeSymbol.Interfaces)
-                        {
-                            var fullyQualifiedInterfaceName = @interface.ToDisplayString();
-
-                            sourceBuilder.AppendLine($@"            {serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedInterfaceName}, {fullyQualifiedTypeName}>();");
-                        }
-
-                        break;
-                    }
-                case false when !classHasAbstractBaseType:
-                    sourceBuilder.AppendLine($@"            {serviceScopeToMethodNameMap[typeScope]}<{fullyQualifiedTypeName}>();");
-
-                    break;
-            }
-        }
-
-        sourceBuilder.AppendLine(@"        }");
-        sourceBuilder.AppendLine(@"    }");
-        sourceBuilder.AppendLine(@"}");
-
-        return sourceBuilder.ToString();
     }
 }

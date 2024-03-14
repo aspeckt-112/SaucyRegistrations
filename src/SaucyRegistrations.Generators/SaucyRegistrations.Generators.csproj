@@ -35,7 +35,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Saucy.Common\Saucy.Common.csproj" PrivateAssets="all"/>
         <None Include="$(ProjectDir)\..\Saucy.Common\$(OutputPath)\*.dll" Pack="true" PackagePath="lib/netstandard2.0" Visible="false"/>
     </ItemGroup>
 
