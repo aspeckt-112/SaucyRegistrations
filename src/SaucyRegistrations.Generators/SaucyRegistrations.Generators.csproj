@@ -10,12 +10,14 @@
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <Title>SaucyRegistrations</Title>
-        <Description>Automatically register your classes with a service collection. I wrote it because I'm lazy, use it if you're lazy too!</Description>
+        <Description>Don't like remember to register your types? Me neither!</Description>
         <PackageProjectUrl>https://github.com/aspeckt-112/SaucyRegistrations</PackageProjectUrl>
         <License>https://github.com/aspeckt-112/SaucyRegistrations/blob/main/LICENSE</License>
         <RepositoryUrl>https://github.com/aspeckt-112/SaucyRegistrations</RepositoryUrl>
         <RepositoryType>Git</RepositoryType>
-        <Version>0.0.5</Version>
+        <Version>0.0.1-beta</Version>
+        <PackageId>SaucyRegistrations</PackageId>
+        <Authors>aspeckt112</Authors>
     </PropertyGroup>
     
     <ItemGroup>

@@ -399,6 +399,18 @@ dotnet_diagnostic.sa1101.severity = none
 # SA1000: Keywords should be spaced correctly
 dotnet_diagnostic.sa1000.severity = none
 
+# SA1009: Closing parenthesis should be spaced correctly
+dotnet_diagnostic.sa1009.severity = none
+
+# SA1111: Closing parenthesis should be on line of last parameter
+dotnet_diagnostic.sa1111.severity = none
+
+# SA1413: Use trailing comma in multi-line initializers
+dotnet_diagnostic.sa1413.severity = none
+
+# SA1633: File should have header
+dotnet_diagnostic.sa1633.severity = none
+
 tab_width = 4
 indent_size = 4
 end_of_line = crlf

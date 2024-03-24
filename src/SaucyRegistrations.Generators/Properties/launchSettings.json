@@ -4,6 +4,10 @@
     "Generators.Console": {
       "commandName": "DebugRoslynComponent",
       "targetProject": "../../samples/Saucy.Console/Saucy.Console.csproj"
+    },
+    "Generators.Library": {
+      "commandName": "DebugRoslynComponent",
+      "targetProject": "../../samples/SaucyConcreteTypes.Library/SaucyConcreteTypes.Library.csproj"
     }
   }
 }

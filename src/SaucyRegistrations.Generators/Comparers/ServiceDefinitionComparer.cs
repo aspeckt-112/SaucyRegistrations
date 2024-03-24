@@ -2,18 +2,23 @@ using System.Collections.Generic;
 
 using SaucyRegistrations.Generators.Models;
 
-namespace SaucyRegistrations.Generators.Comparers
-{
-    public class ServiceDefinitionComparer : IEqualityComparer<ServiceDefinition>
-    {
-        public bool Equals(ServiceDefinition x, ServiceDefinition y)
-        {
-            return x.FullyQualifiedClassName == y.FullyQualifiedClassName;
-        }
+// ReSharper disable once IdentifierTypo
+namespace SaucyRegistrations.Generators.Comparers;
 
-        public int GetHashCode(ServiceDefinition obj)
-        {
-            return obj.FullyQualifiedClassName.GetHashCode();
-        }
+/// <summary>
+/// Comparer for <see cref="ServiceDefinition" /> instances.
+/// </summary>
+internal class ServiceDefinitionComparer : IEqualityComparer<ServiceDefinition>
+{
+    /// <inheritdoc />
+    public bool Equals(ServiceDefinition x, ServiceDefinition y)
+    {
+        return x.FullyQualifiedClassName == y.FullyQualifiedClassName;
+    }
+
+    /// <inheritdoc />
+    public int GetHashCode(ServiceDefinition obj)
+    {
+        return obj.FullyQualifiedClassName.GetHashCode();
     }
 }
