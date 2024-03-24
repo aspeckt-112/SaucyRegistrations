@@ -15,7 +15,7 @@
         <License>https://github.com/aspeckt-112/SaucyRegistrations/blob/main/LICENSE</License>
         <RepositoryUrl>https://github.com/aspeckt-112/SaucyRegistrations</RepositoryUrl>
         <RepositoryType>Git</RepositoryType>
-        <Version>0.0.1-beta</Version>
+        <Version>0.0.2-beta</Version>
         <PackageId>SaucyRegistrations</PackageId>
         <Authors>aspeckt112</Authors>
     </PropertyGroup>
@@ -29,25 +29,20 @@
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.4.0" PrivateAssets="all" />
+        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.3" PrivateAssets="all" />
     </ItemGroup>
     
-    <ItemGroup>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces"/>
-        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers"/>
-    </ItemGroup>
-
     <ItemGroup>
         <None Include="$(ProjectDir)\..\Saucy.Common\$(OutputPath)\*.dll" Pack="true" PackagePath="lib/netstandard2.0" Visible="false"/>
     </ItemGroup>
 
-    <PropertyGroup>
-        <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
-    </PropertyGroup>
 
-    <Target Name="GetDependencyTargetPaths">
-        <ItemGroup>
-            <TargetPathWithTargetPlatformMoniker Include="$(ProjectDir)\..\Saucy.Common\$(OutputPath)\*.dll" IncludeRuntimeDependency="false" />
-        </ItemGroup>
-    </Target>
+    <ItemGroup>
+        <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+<!--        <None Include="..\..\README.md" Pack="true" PackagePath="\" />-->
+<!--        <None Include="..\..\LICENSE.txt" Pack="true" PackagePath="\" />-->
+<!--        <None Include="..\..\Icon.png" Pack="true" PackagePath="\" Visible="false" />-->
+    </ItemGroup>
 
 </Project>
