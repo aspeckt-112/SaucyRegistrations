@@ -9,6 +9,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\SaucyRegistrations.Generators\SaucyRegistrations.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
+        <ProjectReference Include="..\SaucyConcreteTypes.Library\SaucyConcreteTypes.Library.csproj" />
     </ItemGroup>
 
     <ItemGroup>

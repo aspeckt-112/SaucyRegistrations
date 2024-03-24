@@ -9,122 +9,181 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
-using SaucyRegistrations.Generators.CodeConstants;
 using SaucyRegistrations.Generators.Comparers;
 using SaucyRegistrations.Generators.Extensions;
 using SaucyRegistrations.Generators.Infrastructure;
 using SaucyRegistrations.Generators.Models;
+using SaucyRegistrations.Generators.SourceConstants.Attributes;
+using SaucyRegistrations.Generators.SourceConstants.Enums;
 
-namespace SaucyRegistrations.Generators
+namespace SaucyRegistrations.Generators;
+
+/// <summary>
+/// The Saucy generator.
+/// </summary>
+[Generator]
+public sealed class SaucyGenerator : IIncrementalGenerator
 {
-    /// <summary>
-    /// The source generator for the Saucy library.
-    /// </summary>
-    [Generator]
-    public sealed class SaucyGenerator : IIncrementalGenerator
+    /// <inheritdoc />
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        public void Initialize(IncrementalGeneratorInitializationContext context)
-        {
-            context.RegisterPostInitializationOutput(AddSource);
+        RegisterAttributesAndEnums(context);
 
-            IncrementalValueProvider<string> assemblyName = context.CompilationProvider.GetAssemblyName();
+        IncrementalValueProvider<string> assemblyNameProvider = GetAssemblyNameProvider(context);
+        IncrementalValueProvider<ImmutableArray<ServiceDefinition>> assemblyAttributesProvider = GetNamespacesToIncludeProvider(context);
+        IncrementalValuesProvider<ServiceDefinition> serviceDefinitionProvider = CreateServiceDefinitionProvider(context);
 
-            IncrementalValueProvider<ImmutableArray<ServiceDefinition>> assemblyAttributes = context.CompilationProvider.GetNamespacesToInclude();
+        // Horrible tuple. Make use of aliases in the future?
+        IncrementalValueProvider<((ImmutableArray<ServiceDefinition> Services, string AssemblyName) ExplicitlyRegisteredServices, ImmutableArray<ServiceDefinition>
+            NamespaceRegisteredServices)> servicesProvider = CombineProviders(serviceDefinitionProvider, assemblyNameProvider, assemblyAttributesProvider);
 
-            IncrementalValuesProvider<ServiceDefinition> syntax = context.SyntaxProvider.CreateSyntaxProvider(NodeIsClassDeclarationWithSaucyAttributes, GetServiceDetails);
+        RegisterSourceOutput(context, servicesProvider);
+    }
 
-            IncrementalValueProvider<((ImmutableArray<ServiceDefinition> Left, string Right) Left, ImmutableArray<ServiceDefinition> Right)> provider
-                = syntax.Collect().Combine(assemblyName).Combine(assemblyAttributes);
-
-            context.RegisterSourceOutput(
-                provider, (ctx, pair) =>
-                {
-                    ImmutableArray<ServiceDefinition> servicesFromNamespace = pair.Right;
-                    ImmutableArray<ServiceDefinition> servicesFromAttributes = pair.Left.Left;
-                    var assemblyName = pair.Left.Right;
-
-                    var servicesToRegister = new HashSet<ServiceDefinition>(servicesFromAttributes, new ServiceDefinitionComparer());
-
-                    // Any explicitly registered services will take precedence over namespace-registered services. This will happen if the user has chosen to change the scope of a service that's also registered in a namespace.
-                    foreach (ServiceDefinition service in servicesFromNamespace)
-                    {
-                        servicesToRegister.Add(service);
-                    }
-
-                    Generate(ctx, assemblyName, servicesToRegister);
-                }
-            );
-        }
-
-        private void AddSource(IncrementalGeneratorPostInitializationContext ctx)
-        {
-            var attributeSourceCode = new StringBuilder().Append(AttributeConstants.SaucyIncludeNamespaceAttribute)
-                                                         .AppendTwoNewLines()
-                                                         .Append(AttributeConstants.SaucyIncludeAttribute)
-                                                         .ToString();
-
-            ctx.AddSource("Saucy.Attributes.g.cs", SourceText.From(attributeSourceCode, Encoding.UTF8));
-            ctx.AddSource("Saucy.Enums.g.cs", SourceText.From(EnumConstants.ServiceScopeEnum, Encoding.UTF8));
-        }
-
-        private static bool NodeIsClassDeclarationWithSaucyAttributes(SyntaxNode node, CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            return node is ClassDeclarationSyntax cds
-                   && cds.AttributeLists.SelectMany(x => x.Attributes).Any(y => y.Name.ToString() == AttributeConstants.SaucyIncludeAttributeName);
-        }
-
-        private static ServiceDefinition GetServiceDetails(GeneratorSyntaxContext context, CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var symbol = (context.SemanticModel.GetDeclaredSymbol(context.Node) as INamedTypeSymbol) !;
-
-            AttributeData saucyIncludeAttribute = symbol.GetAttributes().First(x => x.AttributeClass?.Name == AttributeConstants.SaucyIncludeAttributeName);
-            var serviceScope = (int)saucyIncludeAttribute.ConstructorArguments[0].Value!;
-
-            return new ServiceDefinition(symbol.GetFullyQualifiedName(), serviceScope, symbol.GetContracts());
-        }
-
-        public static void Generate(SourceProductionContext context, string assemblyName, HashSet<ServiceDefinition> servicesToRegister)
-        {
-            context.CancellationToken.ThrowIfCancellationRequested();
-
-            var writer = new SourceWriter();
-
-            Dictionary<int, string> serviceScopeEnumValues = new()
+    private void RegisterAttributesAndEnums(IncrementalGeneratorInitializationContext context)
+    {
+        context.RegisterPostInitializationOutput(
+            ctx =>
             {
-                { EnumConstants.SingletonValue, "serviceCollection.AddSingleton" },
-                { EnumConstants.TransientValue, "serviceCollection.AddTransient" },
-                { EnumConstants.ScopedValue, "serviceCollection.AddScoped" },
-            };
-
-            writer.AppendLine($"// <auto-generated by Saucy on {DateTime.Now} />")
-                  .AppendLine("using Microsoft.Extensions.DependencyInjection;")
-                  .AppendLine()
-                  .AppendLine("public static class ServiceCollectionExtensions")
-                  .AppendLine("{")
-                  .Indent()
-                  .AppendLine($"public static IServiceCollection Add{assemblyName}Services(this IServiceCollection services)")
-                  .AppendLine("{")
-                  .Indent();
-
-            var serviceCount = servicesToRegister.Count;
-
-            if (serviceCount == 0)
-            {
-                writer.AppendLine("return services;");
+                AddSaucyAttributes(ctx);
+                AddSaucyEnums(ctx);
             }
+        );
+    }
 
+    private void AddSaucyAttributes(IncrementalGeneratorPostInitializationContext ctx)
+    {
+        ctx.AddSource("Saucy.Attributes.SaucyInclude.g.cs", SourceText.From(SaucyInclude.SaucyIncludeAttributeDefinition, Encoding.UTF8));
+
+        ctx.AddSource(
+            "Saucy.Attributes.SaucyIncludeNamespaceWithSuffix.g.cs",
+            SourceText.From(SaucyIncludeNamespaceWithSuffix.SaucyIncludeNamespaceWithSuffixAttributeDefinition, Encoding.UTF8)
+        );
+    }
+
+    private void AddSaucyEnums(IncrementalGeneratorPostInitializationContext ctx)
+    {
+        ctx.AddSource("Saucy.Enums.ServiceScope.g.cs", SourceText.From(ServiceScope.ServiceScopeEnumDefinition, Encoding.UTF8));
+    }
+
+    private IncrementalValueProvider<string> GetAssemblyNameProvider(IncrementalGeneratorInitializationContext context)
+    {
+        return context.CompilationProvider.GetAssemblyName();
+    }
+
+    private IncrementalValueProvider<ImmutableArray<ServiceDefinition>> GetNamespacesToIncludeProvider(IncrementalGeneratorInitializationContext context)
+    {
+        return context.CompilationProvider.GetNamespacesToInclude();
+    }
+
+    private IncrementalValuesProvider<ServiceDefinition> CreateServiceDefinitionProvider(IncrementalGeneratorInitializationContext context)
+    {
+        return context.SyntaxProvider.CreateSyntaxProvider(NodeIsClassDeclarationWithSaucyAttributes, GetServiceDetails);
+    }
+
+    private bool NodeIsClassDeclarationWithSaucyAttributes(SyntaxNode node, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return node is ClassDeclarationSyntax cds && cds.AttributeLists.SelectMany(x => x.Attributes).Any(y => y.Name.ToString() == nameof(SaucyInclude));
+    }
+
+    private ServiceDefinition GetServiceDetails(GeneratorSyntaxContext context, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var symbol = (context.SemanticModel.GetDeclaredSymbol(context.Node) as INamedTypeSymbol) !;
+
+        AttributeData saucyIncludeAttribute = symbol.GetAttributes().First(x => x.AttributeClass?.Name == nameof(SaucyInclude));
+        var serviceScope = (int)saucyIncludeAttribute.ConstructorArguments[0].Value!;
+
+        return new ServiceDefinition(symbol.GetFullyQualifiedName(), serviceScope, symbol.GetContracts());
+    }
+
+    private IncrementalValueProvider<((ImmutableArray<ServiceDefinition> Services, string AssemblyName) ExplicitlyRegisteredServices, ImmutableArray<ServiceDefinition>
+        NamespaceRegisteredServices)> CombineProviders(
+        IncrementalValuesProvider<ServiceDefinition> serviceDefinitionProvider,
+        IncrementalValueProvider<string> assemblyNameProvider,
+        IncrementalValueProvider<ImmutableArray<ServiceDefinition>> assemblyAttributesProvider
+    )
+    {
+        return serviceDefinitionProvider.Collect().Combine(assemblyNameProvider).Combine(assemblyAttributesProvider);
+    }
+
+    private void RegisterSourceOutput(
+        IncrementalGeneratorInitializationContext context,
+        IncrementalValueProvider<((ImmutableArray<ServiceDefinition> Services, string AssemblyName) ExplicitlyRegisteredServices, ImmutableArray<ServiceDefinition>
+            NamespaceRegisteredServices)> servicesProvider
+    )
+    {
+        context.RegisterSourceOutput(
+            servicesProvider, (ctx, servicesPair) =>
+            {
+                ImmutableArray<ServiceDefinition> servicesFromNamespace = !servicesPair.NamespaceRegisteredServices.IsDefault
+                    ? servicesPair.NamespaceRegisteredServices
+                    : ImmutableArray<ServiceDefinition>.Empty;
+
+                ImmutableArray<ServiceDefinition> servicesExplicitlyRegistered = !servicesPair.ExplicitlyRegisteredServices.Services.IsDefault
+                    ? servicesPair.ExplicitlyRegisteredServices.Services
+                    : ImmutableArray<ServiceDefinition>.Empty;
+
+                var assemblyName = servicesPair.ExplicitlyRegisteredServices.AssemblyName;
+
+                var servicesToRegister = new HashSet<ServiceDefinition>(servicesExplicitlyRegistered, new ServiceDefinitionComparer());
+
+                foreach (ServiceDefinition service in servicesFromNamespace)
+                {
+                    servicesToRegister.Add(service);
+                }
+
+                Generate(ctx, assemblyName, servicesToRegister);
+            }
+        );
+    }
+
+    private void Generate(SourceProductionContext context, string assemblyName, HashSet<ServiceDefinition> servicesToRegister)
+    {
+        context.CancellationToken.ThrowIfCancellationRequested();
+
+        var writer = new SourceWriter();
+
+        Dictionary<int, string> serviceScopeEnumValues = new()
+        {
+            { ServiceScope.SingletonScopeValue, "services.AddSingleton" },
+            { ServiceScope.TransientScopeValue, "services.AddTransient" },
+            { ServiceScope.ScopedScopeValue, "services.AddScoped" }
+        };
+
+        var assemblyNameWithoutPeriods = assemblyName.Replace(".", string.Empty);
+        var className = $"{assemblyNameWithoutPeriods}ServiceCollectionExtensions";
+
+        writer.AppendLine($"// <auto-generated by Saucy on {DateTime.Now} />")
+              .AppendLine("using Microsoft.Extensions.DependencyInjection;")
+              .AppendLine()
+              .AppendLine($"namespace {assemblyName}.ServiceCollectionExtensions;")
+              .AppendLine()
+              .AppendLine($"public static class {className}")
+              .AppendLine("{")
+              .Indent()
+              .AppendLine($"public static IServiceCollection Add{assemblyNameWithoutPeriods}Services(this IServiceCollection services)")
+              .AppendLine("{")
+              .Indent();
+
+        var serviceCount = servicesToRegister.Count;
+
+        if (serviceCount == 0)
+        {
+            writer.AppendLine("return services;");
+        }
+        else
+        {
             foreach (ServiceDefinition serviceDefinition in servicesToRegister)
             {
-                // TODO support keyed services?
-                var serviceScope = (int)serviceDefinition.ServiceScope;
+                var serviceScope = (int)serviceDefinition.ServiceScope!;
+
                 if (serviceDefinition.HasContracts)
                 {
-                    // Register each contract for the service to support multiple interfaces.
-                    foreach (var contractName in serviceDefinition.ContractNames)
+                    foreach (var contractName in serviceDefinition.ContractNames!)
                     {
                         writer.AppendLine($"{serviceScopeEnumValues[serviceScope]}<{contractName}, {serviceDefinition.FullyQualifiedClassName}>();");
                     }
@@ -136,10 +195,9 @@ namespace SaucyRegistrations.Generators
             }
 
             writer.AppendLine("return services;");
-
-            writer.UnIndent().AppendLine('}').UnIndent().AppendLine('}');
-
-            context.AddSource("SaucyRegistrations.g.cs", SourceText.From(writer.ToString(), Encoding.UTF8));
         }
+
+        writer.UnIndent().AppendLine('}').UnIndent().AppendLine('}');
+        context.AddSource($"{assemblyNameWithoutPeriods}.{className}.g.cs", SourceText.From(writer.ToString(), Encoding.UTF8));
     }
 }
