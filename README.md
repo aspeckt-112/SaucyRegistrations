@@ -8,4 +8,4 @@ https://github.com/dotnet/roslyn/discussions/47517
 
 https://bigfont.ca/install-and-use-stylecop-in-a-net-or-net-core-project-from-the-command-line/
 
-# DOCS COMING. ONCE I'VE USED IT IN PRODUCTION AT A COUPLE OF WORK PROJECTS AND IRONED OUT THE KINKS!!!
+# DOCS COMING. ONCE I'VE USED IT IN PRODUCTION ON A COUPLE OF PROJECTS AND IRONED OUT ANY KINKS!!!
