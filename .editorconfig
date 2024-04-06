@@ -411,6 +411,12 @@ dotnet_diagnostic.sa1413.severity = none
 # SA1633: File should have header
 dotnet_diagnostic.sa1633.severity = none
 
+# SA1010 Closing square brackets should be spaced correctly
+dotnet_diagnostic.sa1010.severity = none
+
+# SA0001: XML comment analysis is disabled
+dotnet_diagnostic.sa0001.severity = none
+
 tab_width = 4
 indent_size = 4
 end_of_line = crlf
