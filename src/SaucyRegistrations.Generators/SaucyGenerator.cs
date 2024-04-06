@@ -59,6 +59,10 @@ public sealed class SaucyGenerator : IIncrementalGenerator
             "Saucy.Attributes.SaucyIncludeNamespaceWithSuffix.g.cs",
             SourceText.From(SaucyIncludeNamespaceWithSuffix.SaucyIncludeNamespaceWithSuffixAttributeDefinition, Encoding.UTF8)
         );
+
+        ctx.AddSource(
+            "Saucy.Attributes.SaucyOnlyRegisterInterface.g.cs", SourceText.From(SaucyOnlyRegisterInterface.SaucyOnlyRegisterInterfaceAttributeDefinition, Encoding.UTF8)
+        );
     }
 
     private void AddSaucyEnums(IncrementalGeneratorPostInitializationContext ctx)
@@ -97,7 +101,7 @@ public sealed class SaucyGenerator : IIncrementalGenerator
         AttributeData saucyIncludeAttribute = symbol.GetAttributes().First(x => x.AttributeClass?.Name == nameof(SaucyInclude));
         var serviceScope = (int)saucyIncludeAttribute.ConstructorArguments[0].Value!;
 
-        return new ServiceDefinition(symbol.GetFullyQualifiedName(), serviceScope, symbol.GetContracts());
+        return new ServiceDefinition(symbol.GetFullyQualifiedName(), serviceScope, symbol.GetContractDefinitions());
     }
 
     private IncrementalValueProvider<((ImmutableArray<ServiceDefinition> Services, string AssemblyName) ExplicitlyRegisteredServices, ImmutableArray<ServiceDefinition>
@@ -179,18 +183,28 @@ public sealed class SaucyGenerator : IIncrementalGenerator
         {
             foreach (ServiceDefinition serviceDefinition in servicesToRegister)
             {
-                var serviceScope = (int)serviceDefinition.ServiceScope!;
+                var serviceScopeValue = (int)serviceDefinition.ServiceScope!;
+                var serviceScope = serviceScopeEnumValues[serviceScopeValue];
 
                 if (serviceDefinition.HasContracts)
                 {
-                    foreach (var contractName in serviceDefinition.ContractNames!)
+                    foreach (var contractDefinition in serviceDefinition.ContractDefinitions!)
                     {
-                        writer.AppendLine($"{serviceScopeEnumValues[serviceScope]}<{contractName}, {serviceDefinition.FullyQualifiedClassName}>();");
+                        var name = contractDefinition.FullyQualifiedTypeName;
+                        if (contractDefinition.IsGeneric)
+                        {
+                            var genericTypes = string.Join(",", contractDefinition.FullyQualifiedGenericTypeNames!);
+                            writer.AppendLine($"{serviceScope}<{name}<{genericTypes}>, {serviceDefinition.FullyQualifiedClassName}>();");
+                        }
+                        else
+                        {
+                            writer.AppendLine($"{serviceScope}<{name}, {serviceDefinition.FullyQualifiedClassName}>();");
+                        }
                     }
                 }
                 else
                 {
-                    writer.AppendLine($"{serviceScopeEnumValues[serviceScope]}<{serviceDefinition.FullyQualifiedClassName}>();");
+                    writer.AppendLine($"{serviceScope}<{serviceDefinition.FullyQualifiedClassName}>();");
                 }
             }
 

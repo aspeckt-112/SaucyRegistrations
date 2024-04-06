@@ -128,8 +128,7 @@ internal static class CompilationExtensions
         foreach (INamedTypeSymbol? typeSymbol in instantiableTypesInNamespace)
         {
             ct.ThrowIfCancellationRequested();
-            List<string> contractNames = typeSymbol.GetContracts();
-            var serviceDefinition = new ServiceDefinition(typeSymbol.GetFullyQualifiedName(), serviceScope, contractNames);
+            var serviceDefinition = new ServiceDefinition(typeSymbol.GetFullyQualifiedName(), serviceScope, typeSymbol.GetContractDefinitions());
             immutableArrayBuilder.Add(serviceDefinition);
         }
     }
