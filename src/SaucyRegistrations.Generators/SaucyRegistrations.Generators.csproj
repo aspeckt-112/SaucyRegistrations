@@ -1,6 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
-    <!-- https://github.com/dotnet/roslyn/discussions/47517 -->
     
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
@@ -15,29 +13,24 @@
         <License>https://github.com/aspeckt-112/SaucyRegistrations/blob/main/LICENSE</License>
         <RepositoryUrl>https://github.com/aspeckt-112/SaucyRegistrations</RepositoryUrl>
         <RepositoryType>Git</RepositoryType>
-        <Version>0.0.2-beta</Version>
+        <Version>0.0.3-beta</Version>
         <PackageId>SaucyRegistrations</PackageId>
         <Authors>aspeckt112</Authors>
     </PropertyGroup>
     
     <ItemGroup>
-        <PackageReference Include="Roslynator.Analyzers">
+        <PackageReference Include="Roslynator.Analyzers" Version="4.10.0">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="StyleCop.Analyzers">
+        <PackageReference Include="StyleCop.Analyzers" Version="1.1.118">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.4.0" />
-        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.3" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.4.0" PrivateAssets="all" />
+        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.3" PrivateAssets="all" />
     </ItemGroup>
     
-    <ItemGroup>
-        <None Include="$(ProjectDir)\..\Saucy.Common\$(OutputPath)\*.dll" Pack="true" PackagePath="lib/netstandard2.0" Visible="false"/>
-    </ItemGroup>
-
-
     <ItemGroup>
         <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
 <!--        <None Include="..\..\README.md" Pack="true" PackagePath="\" />-->
