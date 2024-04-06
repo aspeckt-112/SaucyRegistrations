@@ -5,7 +5,7 @@ namespace SaucyRegistrations.Generators.Models;
 /// <summary>
 /// Represents a service definition.
 /// </summary>
-public class ServiceDefinition(string fullQualifiedClassName, int? serviceScope, List<string>? contractNames)
+public class ServiceDefinition(string fullQualifiedClassName, int? serviceScope, List<ContractDefinition>? contractDefinitions)
 {
     /// <summary>
     /// Gets the fully qualified class name.
@@ -20,10 +20,10 @@ public class ServiceDefinition(string fullQualifiedClassName, int? serviceScope,
     /// <summary>
     /// Gets the contract names.
     /// </summary>
-    public List<string>? ContractNames { get; } = contractNames;
+    public List<ContractDefinition>? ContractDefinitions { get; } = contractDefinitions;
 
     /// <summary>
     /// Gets a value indicating whether the service definition has contracts.
     /// </summary>
-    public bool HasContracts => ContractNames?.Count > 0;
+    public bool HasContracts => ContractDefinitions?.Count > 0;
 }
