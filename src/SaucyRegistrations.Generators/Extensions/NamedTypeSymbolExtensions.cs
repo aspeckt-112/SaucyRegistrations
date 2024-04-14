@@ -41,24 +41,32 @@ internal static class NamedTypeSymbolExtensions
     /// <returns>The contracts for the named type symbol.</returns>
     internal static List<ContractDefinition> GetContractDefinitions(this INamedTypeSymbol namedTypeSymbol)
     {
-        List<ContractDefinition> contactDefinitions = [];
-
-        foreach (INamedTypeSymbol? @interface in namedTypeSymbol.Interfaces)
-        {
-            contactDefinitions.Add(CreateContractDefinition(@interface));
-        }
-
-        // If the type symbol has the "SaucyOnlyRegisterInterface" attribute, the bail out early.
-        if (namedTypeSymbol.GetAttributes().Any(x => x.AttributeClass?.Name == nameof(SaucyOnlyRegisterInterface)))
-        {
-            return contactDefinitions;
-        }
+        List<ContractDefinition> contactDefinitions = new List<ContractDefinition>();
 
         var hasAbstractBaseClass = namedTypeSymbol.BaseType is { IsAbstract: true };
+        var interfaces = namedTypeSymbol.Interfaces;
+        var interfaceCount = interfaces.Length;
 
-        if (hasAbstractBaseClass && namedTypeSymbol.BaseType is not null)
+        var shouldRegisterAbstractClass = namedTypeSymbol.GetAttributes().Any(x => x.AttributeClass?.Name == nameof(SaucyRegisterAbstractClass));
+
+        if (hasAbstractBaseClass && interfaceCount == 0)
         {
-            contactDefinitions.Add(CreateContractDefinition(namedTypeSymbol.BaseType));
+            // If the type only has an abstract base class, register it as a contract.
+            contactDefinitions.Add(CreateContractDefinition(namedTypeSymbol.BaseType!));
+        }
+        else if (hasAbstractBaseClass && interfaceCount > 0)
+        {
+            if (!shouldRegisterAbstractClass)
+            {
+                // If the type has an abstract base class and interfaces, but does not have the SaucyRegisterAbstractClass attribute, register only the interfaces.
+                contactDefinitions.AddRange(interfaces.Select(CreateContractDefinition));
+            }
+            else
+            {
+                // If the type has an abstract base class and interfaces, and has the SaucyRegisterAbstractClass attribute, register the abstract base class and interfaces.
+                contactDefinitions.Add(CreateContractDefinition(namedTypeSymbol.BaseType!));
+                contactDefinitions.AddRange(interfaces.Select(CreateContractDefinition));
+            }
         }
 
         return contactDefinitions;
