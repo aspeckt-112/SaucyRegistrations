@@ -61,7 +61,7 @@ public sealed class SaucyGenerator : IIncrementalGenerator
         );
 
         ctx.AddSource(
-            "Saucy.Attributes.SaucyOnlyRegisterInterface.g.cs", SourceText.From(SaucyOnlyRegisterInterface.SaucyOnlyRegisterInterfaceAttributeDefinition, Encoding.UTF8)
+            "Saucy.Attributes.SaucyOnlyRegisterInterface.g.cs", SourceText.From(SaucyRegisterAbstractClass.SaucyRegisterAbstractClassAttributeDefinition, Encoding.UTF8)
         );
     }
 
@@ -181,7 +181,7 @@ public sealed class SaucyGenerator : IIncrementalGenerator
         }
         else
         {
-            foreach (ServiceDefinition serviceDefinition in servicesToRegister)
+            foreach (ServiceDefinition serviceDefinition in servicesToRegister.OrderBy(x => x.FullyQualifiedClassName))
             {
                 var serviceScopeValue = (int)serviceDefinition.ServiceScope!;
                 var serviceScope = serviceScopeEnumValues[serviceScopeValue];

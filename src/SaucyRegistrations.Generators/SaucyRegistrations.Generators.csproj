@@ -13,7 +13,7 @@
         <License>https://github.com/aspeckt-112/SaucyRegistrations/blob/main/LICENSE</License>
         <RepositoryUrl>https://github.com/aspeckt-112/SaucyRegistrations</RepositoryUrl>
         <RepositoryType>Git</RepositoryType>
-        <Version>0.0.3-beta</Version>
+        <Version>0.0.5-beta</Version>
         <PackageId>SaucyRegistrations</PackageId>
         <Authors>aspeckt112</Authors>
     </PropertyGroup>
