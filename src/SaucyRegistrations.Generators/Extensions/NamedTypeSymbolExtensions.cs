@@ -68,6 +68,11 @@ internal static class NamedTypeSymbolExtensions
                 contactDefinitions.AddRange(interfaces.Select(CreateContractDefinition));
             }
         }
+        else
+        {
+            // If the type does not have an abstract base class, register the interfaces.
+            contactDefinitions.AddRange(interfaces.Select(CreateContractDefinition));
+        }
 
         return contactDefinitions;
     }
