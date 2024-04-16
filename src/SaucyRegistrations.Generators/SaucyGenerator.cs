@@ -61,7 +61,11 @@ public sealed class SaucyGenerator : IIncrementalGenerator
         );
 
         ctx.AddSource(
-            "Saucy.Attributes.SaucyOnlyRegisterInterface.g.cs", SourceText.From(SaucyRegisterAbstractClass.SaucyRegisterAbstractClassAttributeDefinition, Encoding.UTF8)
+            "Saucy.Attributes.SaucyRegisterAbstractClass.g.cs", SourceText.From(SaucyRegisterAbstractClass.SaucyRegisterAbstractClassAttributeDefinition, Encoding.UTF8)
+        );
+
+        ctx.AddSource(
+            "Saucy.Attributes.SaucyDoNotRegisterWithInterface.g.cs", SourceText.From(SaucyDoNotRegisterWithInterface.SaucyDoNotRegisterWithInterfaceDefinition, Encoding.UTF8)
         );
     }
 

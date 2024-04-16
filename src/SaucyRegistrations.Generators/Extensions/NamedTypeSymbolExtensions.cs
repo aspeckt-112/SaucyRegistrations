@@ -41,40 +41,64 @@ internal static class NamedTypeSymbolExtensions
     /// <returns>The contracts for the named type symbol.</returns>
     internal static List<ContractDefinition> GetContractDefinitions(this INamedTypeSymbol namedTypeSymbol)
     {
-        List<ContractDefinition> contactDefinitions = new List<ContractDefinition>();
+        var contactDefinitions = new List<ContractDefinition>();
 
         var hasAbstractBaseClass = namedTypeSymbol.BaseType is { IsAbstract: true };
-        var interfaces = namedTypeSymbol.Interfaces;
+
+        ImmutableHashSet<string> interfacesToExclude = GetDoNotRegisterInterfaceAttributes(namedTypeSymbol);
+        ImmutableArray<INamedTypeSymbol> interfaces = GetFilteredInterfaces(namedTypeSymbol, interfacesToExclude);
         var interfaceCount = interfaces.Length;
 
-        var shouldRegisterAbstractClass = namedTypeSymbol.GetAttributes().Any(x => x.AttributeClass?.Name == nameof(SaucyRegisterAbstractClass));
-
-        if (hasAbstractBaseClass && interfaceCount == 0)
+        if (ShouldRegisterBaseClass(namedTypeSymbol, hasAbstractBaseClass))
         {
-            // If the type only has an abstract base class, register it as a contract.
             contactDefinitions.Add(CreateContractDefinition(namedTypeSymbol.BaseType!));
+            contactDefinitions.AddRange(interfaces.Select(CreateContractDefinition));
         }
-        else if (hasAbstractBaseClass && interfaceCount > 0)
+        else if (ShouldRegisterInterfaces(namedTypeSymbol, hasAbstractBaseClass, interfaceCount))
         {
-            if (!shouldRegisterAbstractClass)
-            {
-                // If the type has an abstract base class and interfaces, but does not have the SaucyRegisterAbstractClass attribute, register only the interfaces.
-                contactDefinitions.AddRange(interfaces.Select(CreateContractDefinition));
-            }
-            else
-            {
-                // If the type has an abstract base class and interfaces, and has the SaucyRegisterAbstractClass attribute, register the abstract base class and interfaces.
-                contactDefinitions.Add(CreateContractDefinition(namedTypeSymbol.BaseType!));
-                contactDefinitions.AddRange(interfaces.Select(CreateContractDefinition));
-            }
+            contactDefinitions.AddRange(interfaces.Select(CreateContractDefinition));
         }
-        else
+        else if (interfaceCount > 0)
         {
-            // If the type does not have an abstract base class, register the interfaces.
             contactDefinitions.AddRange(interfaces.Select(CreateContractDefinition));
         }
 
         return contactDefinitions;
+    }
+
+    private static bool ShouldRegisterBaseClass(INamedTypeSymbol namedTypeSymbol, bool hasAbstractBaseClass)
+    {
+        var shouldRegisterAbstractClass = namedTypeSymbol.GetAttributes()
+            .Any(x => x.AttributeClass?.Name == nameof(SaucyRegisterAbstractClass));
+        return hasAbstractBaseClass && shouldRegisterAbstractClass;
+    }
+
+    private static bool ShouldRegisterInterfaces(
+        INamedTypeSymbol namedTypeSymbol,
+        bool hasAbstractBaseClass,
+        int interfaceCount)
+    {
+        var shouldRegisterAbstractClass = namedTypeSymbol.GetAttributes()
+            .Any(x => x.AttributeClass?.Name == nameof(SaucyRegisterAbstractClass));
+
+        return hasAbstractBaseClass && interfaceCount > 0 && !shouldRegisterAbstractClass;
+    }
+
+    private static ImmutableHashSet<string> GetDoNotRegisterInterfaceAttributes(ITypeSymbol typeSymbol)
+    {
+        return typeSymbol.GetAttributes()
+            .Where(x => x.AttributeClass?.Name == nameof(SaucyDoNotRegisterWithInterface))
+            .Select(x => x.ConstructorArguments[0].Value!.ToString())
+            .ToImmutableHashSet();
+    }
+
+    private static ImmutableArray<INamedTypeSymbol> GetFilteredInterfaces(
+        ITypeSymbol typeSymbol,
+        ImmutableHashSet<string> interfacesToExclude)
+    {
+        return typeSymbol.Interfaces
+            .Where(x => !interfacesToExclude.Contains(x.Name))
+            .ToImmutableArray();
     }
 
     private static ContractDefinition CreateContractDefinition(INamedTypeSymbol typeSymbol)
