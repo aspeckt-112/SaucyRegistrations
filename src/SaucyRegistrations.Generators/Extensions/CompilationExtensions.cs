@@ -21,7 +21,7 @@ internal static class CompilationExtensions
     /// </summary>
     /// <param name="compilation">The compilation.</param>
     /// <returns>The assembly name.</returns>
-    internal static IncrementalValueProvider<string> GetAssemblyName(this IncrementalValueProvider<Compilation> compilation)
+    internal static AssemblyNameProvider GetAssemblyName(this IncrementalValueProvider<Compilation> compilation)
     {
         return compilation.Select(
             (c, ct) =>
@@ -42,14 +42,15 @@ internal static class CompilationExtensions
     /// This method will return an empty collection if no namespaces are found to include.
     /// </remarks>
     /// <exception cref="OperationCanceledException">Thrown when the operation is canceled.</exception>
-    internal static IncrementalValueProvider<ImmutableArray<ServiceDefinition>> GetNamespacesToInclude(this IncrementalValueProvider<Compilation> provider)
+    internal static AssemblyAttributesProvider GetNamespacesToInclude(this IncrementalValueProvider<Compilation> provider)
     {
         return provider.Select(
             (c, ct) =>
             {
                 ct.ThrowIfCancellationRequested();
 
-                List<AttributeData> includeNamespaceSuffixAttributes = GetIncludeNamespaceSuffixAttributes(c);
+                List<AttributeData> includeNamespaceSuffixAttributes = c.Assembly.GetAttributes()
+                    .Where(x => x.AttributeClass?.Name == nameof(SaucyIncludeNamespaceWithSuffix)).ToList();
 
                 if (includeNamespaceSuffixAttributes.Count == 0)
                 {
@@ -61,11 +62,6 @@ internal static class CompilationExtensions
                 return GetServiceDefinitions(includeNamespaceSuffixAttributes, namespacesInAssembly, ct);
             }
         );
-    }
-
-    private static List<AttributeData> GetIncludeNamespaceSuffixAttributes(Compilation c)
-    {
-        return c.Assembly.GetAttributes().Where(x => x.AttributeClass?.Name == nameof(SaucyIncludeNamespaceWithSuffix)).ToList();
     }
 
     private static ImmutableArray<ServiceDefinition> GetServiceDefinitions(

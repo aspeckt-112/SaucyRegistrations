@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -43,22 +42,18 @@ internal static class NamedTypeSymbolExtensions
     {
         var contactDefinitions = new List<ContractDefinition>();
 
-        var hasAbstractBaseClass = namedTypeSymbol.BaseType is { IsAbstract: true };
+        ImmutableArray<INamedTypeSymbol> interfaces = GetFilteredInterfaces(namedTypeSymbol);
 
-        ImmutableHashSet<string> interfacesToExclude = GetDoNotRegisterInterfaceAttributes(namedTypeSymbol);
-        ImmutableArray<INamedTypeSymbol> interfaces = GetFilteredInterfaces(namedTypeSymbol, interfacesToExclude);
-        var interfaceCount = interfaces.Length;
-
-        if (ShouldRegisterBaseClass(namedTypeSymbol, hasAbstractBaseClass))
+        if (ShouldRegisterBaseClass(namedTypeSymbol))
         {
             contactDefinitions.Add(CreateContractDefinition(namedTypeSymbol.BaseType!));
             contactDefinitions.AddRange(interfaces.Select(CreateContractDefinition));
         }
-        else if (ShouldRegisterInterfaces(namedTypeSymbol, hasAbstractBaseClass, interfaceCount))
+        else if (ShouldRegisterInterfaces(namedTypeSymbol))
         {
             contactDefinitions.AddRange(interfaces.Select(CreateContractDefinition));
         }
-        else if (interfaceCount > 0)
+        else if (interfaces.Length > 0)
         {
             contactDefinitions.AddRange(interfaces.Select(CreateContractDefinition));
         }
@@ -66,40 +61,30 @@ internal static class NamedTypeSymbolExtensions
         return contactDefinitions;
     }
 
-    private static bool ShouldRegisterBaseClass(INamedTypeSymbol namedTypeSymbol, bool hasAbstractBaseClass)
+    private static ImmutableArray<INamedTypeSymbol> GetFilteredInterfaces(ITypeSymbol typeSymbol)
     {
-        var shouldRegisterAbstractClass = namedTypeSymbol.GetAttributes()
-            .Any(x => x.AttributeClass?.Name == nameof(SaucyRegisterAbstractClass));
-        return hasAbstractBaseClass && shouldRegisterAbstractClass;
-    }
-
-    private static bool ShouldRegisterInterfaces(
-        INamedTypeSymbol namedTypeSymbol,
-        bool hasAbstractBaseClass,
-        int interfaceCount)
-    {
-        var shouldRegisterAbstractClass = namedTypeSymbol.GetAttributes()
-            .Any(x => x.AttributeClass?.Name == nameof(SaucyRegisterAbstractClass));
-
-        return hasAbstractBaseClass && interfaceCount > 0 && !shouldRegisterAbstractClass;
-    }
-
-    private static ImmutableHashSet<string> GetDoNotRegisterInterfaceAttributes(ITypeSymbol typeSymbol)
-    {
-        return typeSymbol.GetAttributes()
+        var interfacesToExclude = typeSymbol.GetAttributes()
             .Where(x => x.AttributeClass?.Name == nameof(SaucyDoNotRegisterWithInterface))
             .Select(x => x.ConstructorArguments[0].Value!.ToString())
             .ToImmutableHashSet();
+
+        return [
+            ..typeSymbol.Interfaces
+                .Where(x => !interfacesToExclude.Contains(x.Name))
+        ];
     }
 
-    private static ImmutableArray<INamedTypeSymbol> GetFilteredInterfaces(
-        ITypeSymbol typeSymbol,
-        ImmutableHashSet<string> interfacesToExclude)
+    private static bool ShouldRegisterBaseClass(INamedTypeSymbol namedTypeSymbol)
     {
-        return typeSymbol.Interfaces
-            .Where(x => !interfacesToExclude.Contains(x.Name))
-            .ToImmutableArray();
+        var hasAbstractBaseClass = namedTypeSymbol.BaseType is { IsAbstract: true };
+
+        var shouldRegisterAbstractClass = namedTypeSymbol.GetAttributes()
+            .Any(x => x.AttributeClass?.Name == nameof(SaucyRegisterAbstractClass));
+
+        return hasAbstractBaseClass && shouldRegisterAbstractClass;
     }
+
+    private static bool ShouldRegisterInterfaces(INamedTypeSymbol namedTypeSymbol) => namedTypeSymbol.Interfaces.Length > 0;
 
     private static ContractDefinition CreateContractDefinition(INamedTypeSymbol typeSymbol)
     {

@@ -12,14 +12,8 @@ internal sealed class SourceWriter
 
     private int _indentation;
 
-    /// <summary>
-    /// Appends a string to the source code.
-    /// </summary>
-    /// <returns>The current instance of the <see cref="SourceWriter"/>.</returns>
-    public override string ToString()
-    {
-        return _sb.ToString();
-    }
+    /// <inheritdoc />
+    public override string ToString() => _sb.ToString();
 
     /// <summary>
     /// Appends a string to the source code.
