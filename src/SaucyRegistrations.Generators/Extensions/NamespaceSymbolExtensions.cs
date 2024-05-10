@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 using Microsoft.CodeAnalysis;
 
@@ -34,18 +35,8 @@ internal static class NamespaceSymbolExtensions
     /// <returns>The instantiable types for the namespace symbol.</returns>
     internal static List<INamedTypeSymbol> GetInstantiableTypes(this INamespaceSymbol namespaceSymbol)
     {
-        List<INamedTypeSymbol> types = new();
-
-        foreach (INamedTypeSymbol? symbol in namespaceSymbol.GetTypeMembers())
-        {
-            if (symbol.IsAbstract
-                || symbol.IsStatic)
-            {
-                continue;
-            }
-
-            types.Add(symbol);
-        }
+        List<INamedTypeSymbol> types = [];
+        types.AddRange(namespaceSymbol.GetTypeMembers().Where(symbol => !symbol.IsAbstract && !symbol.IsStatic));
 
         return types;
     }

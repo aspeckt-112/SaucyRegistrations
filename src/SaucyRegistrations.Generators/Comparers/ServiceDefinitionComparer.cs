@@ -11,14 +11,8 @@ namespace SaucyRegistrations.Generators.Comparers;
 internal class ServiceDefinitionComparer : IEqualityComparer<ServiceDefinition>
 {
     /// <inheritdoc />
-    public bool Equals(ServiceDefinition x, ServiceDefinition y)
-    {
-        return x.FullyQualifiedClassName == y.FullyQualifiedClassName;
-    }
+    public bool Equals(ServiceDefinition x, ServiceDefinition y) => x.FullyQualifiedClassName == y.FullyQualifiedClassName;
 
     /// <inheritdoc />
-    public int GetHashCode(ServiceDefinition obj)
-    {
-        return obj.FullyQualifiedClassName.GetHashCode();
-    }
+    public int GetHashCode(ServiceDefinition obj) => obj.FullyQualifiedClassName.GetHashCode();
 }
