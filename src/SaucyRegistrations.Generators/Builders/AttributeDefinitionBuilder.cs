@@ -10,10 +10,7 @@ public class AttributeDefinitionBuilder
     private readonly StringBuilder _sb = new();
 
     /// <inheritdoc />
-    public override string ToString()
-    {
-        return _sb.ToString();
-    }
+    public override string ToString() => _sb.ToString();
 
     /// <summary>
     /// Appends an attribute definition to the source code.
