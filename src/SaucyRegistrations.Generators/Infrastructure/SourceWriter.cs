@@ -71,4 +71,16 @@ internal sealed class SourceWriter
 
         return this;
     }
+
+    /// <summary>
+    /// Appends a string (without a new line) to the source code.
+    /// </summary>
+    /// <param name="value">The string to append.</param>
+    /// <returns>The current instance of the <see cref="SourceWriter"/>.</returns>
+    internal SourceWriter Append(char value)
+    {
+        _sb.Append(value);
+
+        return this;
+    }
 }
