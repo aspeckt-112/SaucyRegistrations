@@ -1,10 +1,10 @@
 ## Outstanding features / issues
 
-| Issue                                          | Link                                                        | Notes |
-|------------------------------------------------|-------------------------------------------------------------|-------|
-| Support for keyed services                     | https://github.com/aspeckt-112/SaucyRegistrations/issues/23 |       |
-| Allow excluding certain classes in a namespace | https://github.com/aspeckt-112/SaucyRegistrations/issues/24 |       |
-| Support for generic classes                    | https://github.com/aspeckt-112/SaucyRegistrations/issues/33 |       |
+| Issue                                          | Link                                                        |
+|------------------------------------------------|-------------------------------------------------------------|
+| Support for keyed services                     | https://github.com/aspeckt-112/SaucyRegistrations/issues/23 |
+| Allow excluding certain classes in a namespace | https://github.com/aspeckt-112/SaucyRegistrations/issues/24 |
+| Support for generic classes                    | https://github.com/aspeckt-112/SaucyRegistrations/issues/33 |
 
 # Saucy Registrations
 
@@ -21,7 +21,7 @@ Saucy is an [incremental source generator](https://github.com/dotnet/roslyn/blob
 
 ## How do I use this?
 
-See the [samples](https://github.com/aspeckt-112/SaucyRegistrations/tree/develop/samples) for a working example. Or read on if you want to know more or you're just procrastinating at work, trying to look productive by reading documentation on GitHub.
+See the [samples](https://github.com/aspeckt-112/SaucyRegistrations/tree/develop/samples) for a working example. Read on if you want to know more, or you're just procrastinating at work, trying to look productive by reading documentation on GitHub.
 
 At it's core, usage is as simple as adding a single attribute to your service class. For example:
 
