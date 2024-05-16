@@ -22,7 +22,7 @@ jobs:
       shell: bash
       run: |
         version=${BRANCH_NAME#release.}
-        csprojfile=./src/SaucyRegistrations.Generators.csproj
+        csprojfile=./src/SaucyRegistrations.Generators/SaucyRegistrations.Generators.csproj
         sed -i "s|<Version>.*</Version>|<Version>$version</Version>|g" $csprojfile
     - name: Run shell script
       run: ./build.sh
