@@ -15,5 +15,17 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
+    - name: Extract branch name
+      shell: bash
+      run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | sed 's/\//./g')" >> $GITHUB_ENV
+    - name: Update version in .csproj
+      shell: bash
+      run: |
+        version=${BRANCH_NAME#release.}
+        csprojfile=./src/SaucyRegistrations.Generators/SaucyRegistrations.Generators.csproj
+        sed -i "s|<Version>.*</Version>|<Version>$version</Version>|g" $csprojfile
     - name: Run shell script
       run: ./build.sh
+    - name: Push to NuGet
+      run: dotnet nuget push "./artifacts/*.nupkg" --api-key ${{secrets.NUGET_API_TOKEN}} --source https://api.nuget.org/v3/index.json
+    
