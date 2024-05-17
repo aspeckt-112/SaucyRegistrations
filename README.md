@@ -8,15 +8,15 @@
 
 # Saucy Registrations
 
-I've worked on a few large enterprise projects that made use of a dependency injection container. On multiple different projects, at multiple different jobs, there existed some code to "automagically" register services with the container following some sort of convention. For example, classes that ended with "Repository" would be registered as a singleton, while classes that ended with "Service" would be registered as transient, etc. This code was always done with reflection, normally a pain to maintain and debug and always seemed to be a bit of a black box.
+I've worked on a few large enterprise projects that made use of a dependency injection container. Within multiple different projects, at multiple different jobs, there existed some code to "automagically" register services with the container following some sort of convention. For example, classes that ended with "Repository" would be registered as a singleton, while classes that ended with "Service" would be registered as transient, etc. This code was always done with reflection, normally a pain to maintain, and always seemed to be a bit of a black box.
 
-I wanted to solve the problem for myself, once and for all. I wanted to do it in a way that was quick and easy to understand.
+I wanted to solve the problem for myself, once and for all. I wanted to solve it with minimal performance impact, minimal configuration, and maximum readability.
 
 Enter...this.
 
 ## What is this?
 
-Saucy is an [incremental source generator](https://github.com/dotnet/roslyn/blob/main/docs/features/incremental-generators.md). It provides a few attributes and an enum. Using these, it'll then generate a class within the same assembly that contains all the registrations for your services. You simply call the extension method it generates in your composition root and forget about it.
+Saucy is an [incremental source generator](https://github.com/dotnet/roslyn/blob/main/docs/features/incremental-generators.md). It provides a four attributes and a single enum.  Using these, within the assembly it's been installed into, it'll generate a class with a single extension method.  This class contains all the registrations for your services. You simply call the extension method it generates in your composition root and forget about it.
 
 
 ## How do I use this?
@@ -59,14 +59,14 @@ In essence, that's it.
 
 At this point you may be thinking "This isn't saving me much time, I could have just written the registration code myself". And you'd be right. But the real power of Saucy comes when you have a large project with many services, in many different namespaces. To help you with this, Saucy provides another, more powerful attribute: `SaucyIncludeNamespaceWithSuffix`.
 
-`SaucyIncludeNamespaceWithSuffix` is an attribute that you apply at the assembly level. It tells Saucy to always register classes in that namespace with a specific suffix. For example:
+`SaucyIncludeNamespaceWithSuffix` is applied at the assembly level. It tells Saucy to always register classes in a specific namespace. For example:
 
 ```csharp
 AssemblyInfo.cs
 [assembly: SaucyIncludeNamespaceWithSuffix(nameof(Saucy.Services), ServiceScope.Transient)]
 ```
 
-With this, all classes in the `Saucy.Services` namespace will be registered as transient. This is particularly useful when you have a large project with many services, and you want to register them all in the same way.
+With this, all classes in the `Saucy.Services` namespace will be registered as transient. Now, you can just continue to add services to that nanmespace, and they'll be registered automatically.
 
 There's no limitation on the amount of attributes you can apply to an assembly, so you can have multiple namespaces with different scopes.
 
@@ -94,13 +94,13 @@ public static class SaucyConsoleServiceCollectionExtensions
 }
 ```
 
-*Note: services are registered alphabetically by their fully qualified name. A purely arbitrary choice that I made.*
+*Note: services are registered in alphabetical order, using the fully qualified name of the class.*
 
-If you need to override the default scope for a specific class, you can do so by applying the `SaucyInclude` attribute to the class itself. This will override the scope set by the namespace attribute.
+If you need to override the default scope for a specific class, you can do so by applying the `SaucyInclude` attribute to the class itself. This will override the scope set by the assembly attribute.
 
 # Anything else?
 
-Yes! By default, abstract classes won't be registered. I'm open to feedback on this, but from experience, I can count on one hand that I've actually resolved an abstract class from the container. If you need to register an abstract class. However, if you need, you can do so by applying the `SaucyRegisterAbstractClass` attribute to the class.
+Yes! By default, classes that only implement an abstract class won't be registered. I'm open to feedback on this, but from experience, I can count on one hand the times that I've actually resolved an abstract class from the container. However, if you need to register an abstract class, you can do so by applying the `SaucyRegisterAbstractClass` attribute to the class.
 
 ```csharp
 [SaucyInclude(ServiceScope.Transient)]
@@ -122,7 +122,7 @@ public class IncludedServiceWithScopeOverride : IService
 }
 ```
 
-Doing that will register a concrete instance of `IncludedServiceWithScopeOverride` with the container, but it won't register it as an `IService`.
+Doing that will register a concrete instance of `IncludedServiceWithScopeOverride` with the container, it won't register it as an `IService`.
 
 ## Support for generics?
 
