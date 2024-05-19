@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -35,16 +36,25 @@ public sealed class SaucyGenerator : IIncrementalGenerator
             }
         );
 
-        AssemblyNameProvider assemblyNameProvider = context.CompilationProvider.GetAssemblyName();
-        AssemblyAttributesProvider assemblyAttributesProvider = context.CompilationProvider.GetNamespacesToInclude();
+        try
+        {
+            AssemblyNameProvider assemblyNameProvider = context.CompilationProvider.GetAssemblyName();
+            AssemblyAttributesProvider assemblyAttributesProvider = context.CompilationProvider.GetNamespacesToInclude();
 
-        IncrementalValuesProvider<ServiceDefinition> serviceDefinitionProvider =
-            context.SyntaxProvider.CreateSyntaxProvider(NodeIsClassDeclarationWithSaucyAttributes, GetServiceDetails);
+            IncrementalValuesProvider<ServiceDefinition> serviceDefinitionProvider =
+                context.SyntaxProvider.CreateSyntaxProvider(NodeIsClassDeclarationWithSaucyAttributes, GetServiceDetails);
 
-        ServicesProvider servicesProvider = serviceDefinitionProvider.Collect().Combine(assemblyNameProvider)
-            .Combine(assemblyAttributesProvider);
+            ServicesProvider servicesProvider = serviceDefinitionProvider
+                .Collect()
+                .Combine(assemblyNameProvider)
+                .Combine(assemblyAttributesProvider);
 
-        RegisterSourceOutput(context, servicesProvider);
+            RegisterSourceOutput(context, servicesProvider);
+        }
+        catch (OperationCanceledException)
+        {
+            // Do nothing.
+        }
     }
 
     private void AddSaucyAttributes(IncrementalGeneratorPostInitializationContext ctx)
@@ -93,6 +103,10 @@ public sealed class SaucyGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(
             servicesProvider, (ctx, servicesPair) =>
             {
+                var cancellationToken = ctx.CancellationToken;
+
+                cancellationToken.ThrowIfCancellationRequested();
+
                 ImmutableArray<ServiceDefinition> servicesFromNamespace =
                     !servicesPair.NamespaceRegisteredServices.IsDefault
                         ? servicesPair.NamespaceRegisteredServices
@@ -110,6 +124,7 @@ public sealed class SaucyGenerator : IIncrementalGenerator
 
                 foreach (ServiceDefinition service in servicesFromNamespace)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     servicesToRegister.Add(service);
                 }
 
@@ -123,7 +138,9 @@ public sealed class SaucyGenerator : IIncrementalGenerator
         string assemblyName,
         HashSet<ServiceDefinition> servicesToRegister)
     {
-        context.CancellationToken.ThrowIfCancellationRequested();
+        var cancellationToken = context.CancellationToken;
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         var writer = new SourceWriter();
 
@@ -160,6 +177,8 @@ public sealed class SaucyGenerator : IIncrementalGenerator
         {
             foreach (ServiceDefinition serviceDefinition in servicesToRegister.OrderBy(x => x.FullyQualifiedClassName))
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 var serviceScopeValue = (int)serviceDefinition.ServiceScope!;
                 var serviceScope = serviceScopeEnumValues[serviceScopeValue];
 
@@ -167,6 +186,8 @@ public sealed class SaucyGenerator : IIncrementalGenerator
                 {
                     foreach (ContractDefinition? contractDefinition in serviceDefinition.ContractDefinitions!)
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
+
                         var name = contractDefinition.FullyQualifiedTypeName;
                         if (contractDefinition.IsGeneric)
                         {
