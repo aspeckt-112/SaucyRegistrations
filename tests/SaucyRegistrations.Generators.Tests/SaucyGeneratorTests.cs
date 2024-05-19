@@ -1,5 +1,3 @@
-using Xunit;
-
 namespace SaucyRegistrations.Generators.Tests;
 
 public class SaucyGeneratorTests : BaseTest
