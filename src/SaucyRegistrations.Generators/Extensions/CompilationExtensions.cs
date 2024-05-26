@@ -50,7 +50,7 @@ internal static class CompilationExtensions
                 ct.ThrowIfCancellationRequested();
 
                 List<AttributeData> includeNamespaceSuffixAttributes = c.Assembly.GetAttributes()
-                    .Where(x => x.AttributeClass?.Name == nameof(SaucyIncludeNamespaceWithSuffix)).ToList();
+                    .Where(x => x.AttributeClass?.Name == nameof(SaucyIncludeNamespace)).ToList();
 
                 if (includeNamespaceSuffixAttributes.Count == 0)
                 {
