@@ -250,10 +250,10 @@ public class SaucyGeneratorTests : BaseTest
     }
 
     [Fact]
-    public async Task SaucyIncludeNamespaceWithSuffix_When_NoClassHasServiceScopeOverride_Should_GenerateOutput()
+    public async Task SaucyIncludeNamespace_When_NoClassHasServiceScopeOverride_Should_GenerateOutput()
     {
         const string input = """
-                             [assembly: SaucyIncludeNamespaceWithSuffix(nameof(SaucyRegistrations.TestProject.Repositories), ServiceScope.Transient)]
+                             [assembly: SaucyIncludeNamespace(nameof(SaucyRegistrations.TestProject.Repositories), ServiceScope.Transient)]
 
                              namespace SaucyRegistrations.TestProject.Repositories;
 
@@ -289,10 +289,10 @@ public class SaucyGeneratorTests : BaseTest
     }
 
     [Fact]
-    public async Task SaucyIncludeNamespaceWithSuffix_When_ClassHasServiceScopeOverride_Should_GenerateOutput()
+    public async Task SaucyIncludeNamespace_When_ClassHasServiceScopeOverride_Should_GenerateOutput()
     {
         const string input = """
-                             [assembly: SaucyIncludeNamespaceWithSuffix(nameof(SaucyRegistrations.TestProject.Repositories), ServiceScope.Transient)]
+                             [assembly: SaucyIncludeNamespace(nameof(SaucyRegistrations.TestProject.Repositories), ServiceScope.Transient)]
 
                              namespace SaucyRegistrations.TestProject.Repositories;
 

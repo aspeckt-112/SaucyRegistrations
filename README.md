@@ -57,13 +57,13 @@ In essence, that's it.
 
 # But this isn't saving me much time?
 
-At this point you may be thinking "This isn't saving me much time, I could have just written the registration code myself". And you'd be right. But the real power of Saucy comes when you have a large project with many services, in many different namespaces. To help you with this, Saucy provides another, more powerful attribute: `SaucyIncludeNamespaceWithSuffix`.
+At this point you may be thinking "This isn't saving me much time, I could have just written the registration code myself". And you'd be right. But the real power of Saucy comes when you have a large project with many services, in many different namespaces. To help you with this, Saucy provides another, more powerful attribute: `SaucyIncludeNamespace`.
 
-`SaucyIncludeNamespaceWithSuffix` is applied at the assembly level. It tells Saucy to always register classes in a specific namespace. For example:
+`SaucyIncludeNamespace` is applied at the assembly level. It tells Saucy to always register classes in a specific namespace. For example:
 
 ```csharp
 AssemblyInfo.cs
-[assembly: SaucyIncludeNamespaceWithSuffix(nameof(Saucy.Services), ServiceScope.Transient)]
+[assembly: SaucyIncludeNamespace(nameof(Saucy.Services), ServiceScope.Transient)]
 ```
 
 With this, all classes in the `Saucy.Services` namespace will be registered as transient. Now, you can just continue to add services to that nanmespace, and they'll be registered automatically.
@@ -71,8 +71,8 @@ With this, all classes in the `Saucy.Services` namespace will be registered as t
 There's no limitation on the amount of attributes you can apply to an assembly, so you can have multiple namespaces with different scopes.
 
 ```csharp
-[assembly: SaucyIncludeNamespaceWithSuffix(nameof(Saucy.Services), ServiceScope.Transient)]
-[assembly: SaucyIncludeNamespaceWithSuffix(nameof(Saucy.Builders), ServiceScope.Singleton)]
+[assembly: SaucyIncludeNamespace(nameof(Saucy.Services), ServiceScope.Transient)]
+[assembly: SaucyIncludeNamespace(nameof(Saucy.Builders), ServiceScope.Singleton)]
 ```
 
 Which would generate the following code:

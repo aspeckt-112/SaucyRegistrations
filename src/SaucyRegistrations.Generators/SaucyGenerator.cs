@@ -61,7 +61,7 @@ public sealed class SaucyGenerator : IIncrementalGenerator
     {
         AttributeDefinitionBuilder allAttributes = new AttributeDefinitionBuilder()
             .AppendAttributeDefinition(SaucyInclude.SaucyIncludeAttributeDefinition)
-            .AppendAttributeDefinition(SaucyIncludeNamespaceWithSuffix.SaucyIncludeNamespaceWithSuffixAttributeDefinition)
+            .AppendAttributeDefinition(SaucyIncludeNamespace.SaucyIncludeNamespaceWithSuffixAttributeDefinition)
             .AppendAttributeDefinition(SaucyRegisterAbstractClass.SaucyRegisterAbstractClassAttributeDefinition)
             .AppendAttributeDefinition(SaucyDoNotRegisterWithInterface.SaucyDoNotRegisterWithInterfaceDefinition);
 
