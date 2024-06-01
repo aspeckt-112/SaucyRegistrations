@@ -17,6 +17,7 @@ using SaucyRegistrations.Generators.Models;
 using SaucyRegistrations.Generators.SourceConstants.Attributes;
 using SaucyRegistrations.Generators.SourceConstants.Enums;
 
+// ReSharper disable UnusedVariable -- Used for debugging.
 namespace SaucyRegistrations.Generators;
 
 /// <summary>
@@ -63,7 +64,8 @@ public sealed class SaucyGenerator : IIncrementalGenerator
             .AppendAttributeDefinition(SaucyInclude.SaucyIncludeAttributeDefinition)
             .AppendAttributeDefinition(SaucyIncludeNamespace.SaucyIncludeNamespaceWithSuffixAttributeDefinition)
             .AppendAttributeDefinition(SaucyRegisterAbstractClass.SaucyRegisterAbstractClassAttributeDefinition)
-            .AppendAttributeDefinition(SaucyDoNotRegisterWithInterface.SaucyDoNotRegisterWithInterfaceDefinition);
+            .AppendAttributeDefinition(SaucyDoNotRegisterWithInterface.SaucyDoNotRegisterWithInterfaceDefinition)
+            .AppendAttributeDefinition(SaucyExclude.SaucyExcludeAttributeDefinition);
 
         ctx.AddSource("Saucy.Attributes.g.cs", SourceText.From(allAttributes.ToString(), Encoding.UTF8));
     }
@@ -77,8 +79,21 @@ public sealed class SaucyGenerator : IIncrementalGenerator
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        return node is ClassDeclarationSyntax cds && cds.AttributeLists.SelectMany(x => x.Attributes)
-            .Any(y => y.Name.ToString() == nameof(SaucyInclude));
+        switch (node)
+        {
+            case ClassDeclarationSyntax cds:
+                {
+                    AttributeSyntax[] attributes = cds
+                        .AttributeLists.SelectMany(x => x.Attributes)
+                        .ToArray();
+
+                    return attributes.Any(y => y.Name.ToString() == nameof(SaucyInclude)) &&
+                           attributes.All(y => y.Name.ToString() != nameof(SaucyExclude));
+                }
+
+            default:
+                return false;
+        }
     }
 
     private ServiceDefinition GetServiceDetails(GeneratorSyntaxContext context, CancellationToken cancellationToken)
