@@ -98,6 +98,16 @@ public static class SaucyConsoleServiceCollectionExtensions
 
 If you need to override the default scope for a specific class, you can do so by applying the `SaucyInclude` attribute to the class itself. This will override the scope set by the assembly attribute.
 
+If you're including a namespace with many classes, and you want to exclude a specific class for any reason, you can do so by applying the `SaucyExclude` attribute to the class.
+
+```csharp
+[SaucyExclude]
+public class ExcludedService : IService
+{
+
+}
+```
+
 # Anything else?
 
 Yes! By default, classes that only implement an abstract class won't be registered. I'm open to feedback on this, but from experience, I can count on one hand the times that I've actually resolved an abstract class from the container. However, if you need to register an abstract class, you can do so by applying the `SaucyRegisterAbstractClass` attribute to the class.

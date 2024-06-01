@@ -1,5 +1,7 @@
 using System.Text;
 
+using SaucyRegistrations.Generators.Helpers;
+
 namespace SaucyRegistrations.Generators.Builders;
 
 /// <summary>
@@ -19,7 +21,7 @@ public class AttributeDefinitionBuilder
     /// <returns>The current instance of the <see cref="AttributeDefinitionBuilder"/>.</returns>
     public AttributeDefinitionBuilder AppendAttributeDefinition(string attributeDefinition)
     {
-        _sb.AppendLine(attributeDefinition);
+        _sb.AppendLine(StringHelpers.Normalize(attributeDefinition));
         _sb.AppendLine();
 
         return this;
