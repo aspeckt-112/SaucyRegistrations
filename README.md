@@ -1,11 +1,3 @@
-## Outstanding features / issues
-
-| Issue                                          | Link                                                        |
-|------------------------------------------------|-------------------------------------------------------------|
-| Support for keyed services                     | https://github.com/aspeckt-112/SaucyRegistrations/issues/23 |
-| Allow excluding certain classes in a namespace | https://github.com/aspeckt-112/SaucyRegistrations/issues/24 |
-| Support for generic classes                    | https://github.com/aspeckt-112/SaucyRegistrations/issues/33 |
-
 # Saucy Registrations
 
 I've worked on a few large enterprise projects that made use of a dependency injection container. Within multiple different projects, at multiple different jobs, there existed some code to "automagically" register services with the container following some sort of convention. For example, classes that ended with "Repository" would be registered as a singleton, while classes that ended with "Service" would be registered as transient, etc. This code was always done with reflection, normally a pain to maintain, and always seemed to be a bit of a black box.
