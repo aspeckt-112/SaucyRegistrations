@@ -5,7 +5,7 @@ namespace SaucyRegistrations.Generators.Models;
 /// <summary>
 /// Represents a service definition.
 /// </summary>
-public class ServiceDefinition(string fullQualifiedClassName, int? serviceScope, List<ContractDefinition>? contractDefinitions)
+public class ServiceDefinition(string fullQualifiedClassName, int? serviceScope, List<ContractDefinition>? contractDefinitions, string? key)
 {
     /// <summary>
     /// Gets the fully qualified class name.
@@ -26,4 +26,14 @@ public class ServiceDefinition(string fullQualifiedClassName, int? serviceScope,
     /// Gets a value indicating whether the service definition has contracts.
     /// </summary>
     public bool HasContracts => ContractDefinitions?.Count > 0;
+
+    /// <summary>
+    /// Gets a value indicating whether the service definition is keyed.
+    /// </summary>
+    public string? Key { get; } = key;
+
+    /// <summary>
+    /// Gets a value indicating whether the service definition is keyed.
+    /// </summary>
+    public bool IsKeyed => !string.IsNullOrWhiteSpace(Key);
 }

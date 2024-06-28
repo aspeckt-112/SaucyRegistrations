@@ -11,8 +11,8 @@ public class ServiceDefinitionComparerTests
     public void Equals_ReturnsTrue_WhenFullyQualifiedClassNamesMatch()
     {
         // Arrange
-        var x = new ServiceDefinition("Fully.Qualified.ClassName", null, null);
-        var y = new ServiceDefinition("Fully.Qualified.ClassName", null, null);
+        var x = new ServiceDefinition("Fully.Qualified.ClassName", null, null, string.Empty);
+        var y = new ServiceDefinition("Fully.Qualified.ClassName", null, null, string.Empty);
 
         // Act
         var result = _comparer.Equals(x, y);
@@ -25,8 +25,8 @@ public class ServiceDefinitionComparerTests
     public void Equals_ReturnsFalse_WhenFullyQualifiedClassNamesDoNotMatch()
     {
         // Arrange
-        var x = new ServiceDefinition("Fully.Qualified.ClassName", null, null);
-        var y = new ServiceDefinition("Different.Fully.Qualified.ClassName", null, null);
+        var x = new ServiceDefinition("Fully.Qualified.ClassName", null, null, string.Empty);
+        var y = new ServiceDefinition("Different.Fully.Qualified.ClassName", null, null, string.Empty);
 
         // Act
         var result = _comparer.Equals(x, y);
@@ -39,7 +39,7 @@ public class ServiceDefinitionComparerTests
     public void GetHashCode_ReturnsHashCodeOfFullyQualifiedClassName()
     {
         // Arrange
-        var serviceDefinition = new ServiceDefinition("Fully.Qualified.ClassName", null, null);
+        var serviceDefinition = new ServiceDefinition("Fully.Qualified.ClassName", null, null, string.Empty);
 
         // Act
         var result = _comparer.GetHashCode(serviceDefinition);

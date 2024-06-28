@@ -124,7 +124,18 @@ internal static class CompilationExtensions
         foreach (INamedTypeSymbol? typeSymbol in instantiableTypesInNamespace)
         {
             ct.ThrowIfCancellationRequested();
-            var serviceDefinition = new ServiceDefinition(typeSymbol.GetFullyQualifiedName(), serviceScope, typeSymbol.GetContractDefinitions());
+
+            AttributeData? isKeyedServiceAttribute = typeSymbol.GetAttributes()
+                .FirstOrDefault(x => x.AttributeClass?.Name == nameof(SaucyKeyedService));
+
+            string? key = null;
+
+            if (isKeyedServiceAttribute is not null)
+            {
+                key = isKeyedServiceAttribute.ConstructorArguments[0].Value?.ToString();
+            }
+
+            var serviceDefinition = new ServiceDefinition(typeSymbol.GetFullyQualifiedName(), serviceScope, typeSymbol.GetContractDefinitions(), key);
             immutableArrayBuilder.Add(serviceDefinition);
         }
     }

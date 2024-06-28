@@ -42,6 +42,12 @@ public abstract class BaseTest
                                                internal SaucyExclude() { }
                                            }
 
+                                           [System.AttributeUsage(System.AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+                                           internal class SaucyKeyedService : System.Attribute
+                                           {
+                                               internal SaucyKeyedService(string key) { }
+                                           }
+
 
                                            """;
 
