@@ -65,7 +65,8 @@ public sealed class SaucyGenerator : IIncrementalGenerator
             .AppendAttributeDefinition(SaucyIncludeNamespace.SaucyIncludeNamespaceWithSuffixAttributeDefinition)
             .AppendAttributeDefinition(SaucyRegisterAbstractClass.SaucyRegisterAbstractClassAttributeDefinition)
             .AppendAttributeDefinition(SaucyDoNotRegisterWithInterface.SaucyDoNotRegisterWithInterfaceDefinition)
-            .AppendAttributeDefinition(SaucyExclude.SaucyExcludeAttributeDefinition);
+            .AppendAttributeDefinition(SaucyExclude.SaucyExcludeAttributeDefinition)
+            .AppendAttributeDefinition(SaucyKeyedService.SaucyKeyedServiceDefinition);
 
         ctx.AddSource("Saucy.Attributes.g.cs", SourceText.From(allAttributes.ToString(), Encoding.UTF8));
     }
@@ -107,7 +108,17 @@ public sealed class SaucyGenerator : IIncrementalGenerator
 
         var serviceScope = (int)saucyIncludeAttribute.ConstructorArguments[0].Value!;
 
-        return new ServiceDefinition(symbol.GetFullyQualifiedName(), serviceScope, symbol.GetContractDefinitions());
+        AttributeData? isKeyedServiceAttribute = symbol.GetAttributes()
+            .FirstOrDefault(x => x.AttributeClass?.Name == nameof(SaucyKeyedService));
+
+        string? key = null;
+
+        if (isKeyedServiceAttribute is not null)
+        {
+            key = isKeyedServiceAttribute.ConstructorArguments[0].Value?.ToString();
+        }
+
+        return new ServiceDefinition(symbol.GetFullyQualifiedName(), serviceScope, symbol.GetContractDefinitions(), key);
     }
 
     private void RegisterSourceOutput(
@@ -161,9 +172,9 @@ public sealed class SaucyGenerator : IIncrementalGenerator
 
         Dictionary<int, string> serviceScopeEnumValues = new()
         {
-            { ServiceScope.SingletonScopeValue, "services.AddSingleton" },
-            { ServiceScope.TransientScopeValue, "services.AddTransient" },
-            { ServiceScope.ScopedScopeValue, "services.AddScoped" }
+            { ServiceScope.SingletonScopeValue, "services.Add{0}Singleton" },
+            { ServiceScope.TransientScopeValue, "services.Add{0}Transient" },
+            { ServiceScope.ScopedScopeValue, "services.Add{0}Scoped" }
         };
 
         var assemblyNameWithoutPeriods = assemblyName.Replace(".", string.Empty);
@@ -194,8 +205,11 @@ public sealed class SaucyGenerator : IIncrementalGenerator
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                var isKeyedService = serviceDefinition.IsKeyed;
                 var serviceScopeValue = (int)serviceDefinition.ServiceScope!;
-                var serviceScope = serviceScopeEnumValues[serviceScopeValue];
+                var serviceScope = string.Format(serviceScopeEnumValues[serviceScopeValue], isKeyedService ? "Keyed" : string.Empty);
+                var key = isKeyedService ? $"\"{serviceDefinition.Key}\"" : string.Empty;
+                // var key = isKeyedService ? string.Empty : string.Empty;
 
                 if (serviceDefinition.HasContracts)
                 {
@@ -208,18 +222,18 @@ public sealed class SaucyGenerator : IIncrementalGenerator
                         {
                             var genericTypes = string.Join(",", contractDefinition.FullyQualifiedGenericTypeNames!);
                             writer.AppendLine(
-                                $"{serviceScope}<{name}<{genericTypes}>, {serviceDefinition.FullyQualifiedClassName}>();");
+                                $"{serviceScope}<{name}<{genericTypes}>, {serviceDefinition.FullyQualifiedClassName}>({key});");
                         }
                         else
                         {
                             writer.AppendLine(
-                                $"{serviceScope}<{name}, {serviceDefinition.FullyQualifiedClassName}>();");
+                                $"{serviceScope}<{name}, {serviceDefinition.FullyQualifiedClassName}>({key});");
                         }
                     }
                 }
                 else
                 {
-                    writer.AppendLine($"{serviceScope}<{serviceDefinition.FullyQualifiedClassName}>();");
+                    writer.AppendLine($"{serviceScope}<{serviceDefinition.FullyQualifiedClassName}>({key});");
                 }
             }
 
