@@ -6,6 +6,7 @@ using System.Threading;
 
 using Microsoft.CodeAnalysis;
 
+using SaucyRegistrations.Generators.Factories;
 using SaucyRegistrations.Generators.Models;
 using SaucyRegistrations.Generators.SourceConstants.Attributes;
 
@@ -124,18 +125,7 @@ internal static class CompilationExtensions
         foreach (INamedTypeSymbol? typeSymbol in instantiableTypesInNamespace)
         {
             ct.ThrowIfCancellationRequested();
-
-            AttributeData? isKeyedServiceAttribute = typeSymbol.GetAttributes()
-                .FirstOrDefault(x => x.AttributeClass?.Name == nameof(SaucyKeyedService));
-
-            string? key = null;
-
-            if (isKeyedServiceAttribute is not null)
-            {
-                key = isKeyedServiceAttribute.ConstructorArguments[0].Value?.ToString();
-            }
-
-            var serviceDefinition = new ServiceDefinition(typeSymbol.GetFullyQualifiedName(), serviceScope, typeSymbol.GetContractDefinitions(), key);
+            ServiceDefinition serviceDefinition = ServiceDefinitionFactory.CreateServiceDefinition(typeSymbol, serviceScope);
             immutableArrayBuilder.Add(serviceDefinition);
         }
     }

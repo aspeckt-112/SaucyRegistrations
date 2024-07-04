@@ -12,6 +12,7 @@ using Microsoft.CodeAnalysis.Text;
 using SaucyRegistrations.Generators.Builders;
 using SaucyRegistrations.Generators.Comparers;
 using SaucyRegistrations.Generators.Extensions;
+using SaucyRegistrations.Generators.Factories;
 using SaucyRegistrations.Generators.Infrastructure;
 using SaucyRegistrations.Generators.Models;
 using SaucyRegistrations.Generators.SourceConstants.Attributes;
@@ -101,24 +102,14 @@ public sealed class SaucyGenerator : IIncrementalGenerator
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var symbol = (context.SemanticModel.GetDeclaredSymbol(context.Node) as INamedTypeSymbol) !;
+        var namedTypeSymbol = (context.SemanticModel.GetDeclaredSymbol(context.Node) as INamedTypeSymbol) !;
 
         AttributeData saucyIncludeAttribute =
-            symbol.GetAttributes().First(x => x.AttributeClass?.Name == nameof(SaucyInclude));
+            namedTypeSymbol.GetAttributes().First(x => x.AttributeClass?.Name == nameof(SaucyInclude));
 
         var serviceScope = (int)saucyIncludeAttribute.ConstructorArguments[0].Value!;
 
-        AttributeData? isKeyedServiceAttribute = symbol.GetAttributes()
-            .FirstOrDefault(x => x.AttributeClass?.Name == nameof(SaucyKeyedService));
-
-        string? key = null;
-
-        if (isKeyedServiceAttribute is not null)
-        {
-            key = isKeyedServiceAttribute.ConstructorArguments[0].Value?.ToString();
-        }
-
-        return new ServiceDefinition(symbol.GetFullyQualifiedName(), serviceScope, symbol.GetContractDefinitions(), key);
+        return ServiceDefinitionFactory.CreateServiceDefinition(namedTypeSymbol, serviceScope);
     }
 
     private void RegisterSourceOutput(
