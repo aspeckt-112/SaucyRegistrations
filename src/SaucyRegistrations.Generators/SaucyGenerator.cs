@@ -15,6 +15,7 @@ using SaucyRegistrations.Generators.Extensions;
 using SaucyRegistrations.Generators.Factories;
 using SaucyRegistrations.Generators.Infrastructure;
 using SaucyRegistrations.Generators.Models;
+using SaucyRegistrations.Generators.Models.Contracts;
 using SaucyRegistrations.Generators.SourceConstants.Attributes;
 using SaucyRegistrations.Generators.SourceConstants.Enums;
 
@@ -208,10 +209,10 @@ public sealed class SaucyGenerator : IIncrementalGenerator
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
-                        var name = contractDefinition.FullyQualifiedTypeName;
-                        if (contractDefinition.IsGeneric)
+                        var name = contractDefinition.TypeName;
+                        if (contractDefinition is ClosedGenericContractDefinition closedGenericContractDefinition)
                         {
-                            var genericTypes = string.Join(",", contractDefinition.FullyQualifiedGenericTypeNames!);
+                            var genericTypes = string.Join(",", closedGenericContractDefinition.GenericTypeNames!);
                             writer.AppendLine(
                                 $"{serviceScope}<{name}<{genericTypes}>, {serviceDefinition.FullyQualifiedClassName}>({key});");
                         }
