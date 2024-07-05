@@ -43,14 +43,15 @@ internal static class CompilationExtensions
     /// This method will return an empty collection if no namespaces are found to include.
     /// </remarks>
     /// <exception cref="OperationCanceledException">Thrown when the operation is canceled.</exception>
-    internal static AssemblyAttributesProvider GetNamespacesToInclude(this IncrementalValueProvider<Compilation> provider)
+    internal static AssemblyAttributesProvider GetNamespacesToInclude(
+        this IncrementalValueProvider<Compilation> provider)
     {
         return provider.Select(
             (c, ct) =>
             {
                 ct.ThrowIfCancellationRequested();
 
-                List<AttributeData> includeNamespaceSuffixAttributes = c.Assembly.GetAttributes()
+                var includeNamespaceSuffixAttributes = c.Assembly.GetAttributes()
                     .Where(x => x.AttributeClass?.Name == nameof(SaucyIncludeNamespace)).ToList();
 
                 if (includeNamespaceSuffixAttributes.Count == 0)
@@ -60,73 +61,11 @@ internal static class CompilationExtensions
 
                 var namespacesInAssembly = c.Assembly.GlobalNamespace.GetAllNestedNamespaces().ToList();
 
-                return GetServiceDefinitions(includeNamespaceSuffixAttributes, namespacesInAssembly, ct);
+                return ServiceDefinitionFactory.GetServiceDefinitionsFromNamespaces(
+                    includeNamespaceSuffixAttributes,
+                    namespacesInAssembly,
+                    ct);
             }
         );
-    }
-
-    private static ImmutableArray<ServiceDefinition> GetServiceDefinitions(
-        List<AttributeData> includeNamespaceSuffixAttributes,
-        List<INamespaceSymbol> namespacesInAssembly,
-        CancellationToken ct
-    )
-    {
-        ImmutableArray<ServiceDefinition>.Builder immutableArrayBuilder = ImmutableArray.CreateBuilder<ServiceDefinition>();
-
-        foreach (AttributeData? namespaceSuffixAttribute in includeNamespaceSuffixAttributes)
-        {
-            ct.ThrowIfCancellationRequested();
-
-            var namespaceSuffix = namespaceSuffixAttribute.ConstructorArguments[0].Value?.ToString();
-            var serviceScope = (int)namespaceSuffixAttribute.ConstructorArguments[1].Value!;
-
-            if (namespaceSuffix is null)
-            {
-                continue;
-            }
-
-            var matchingNamespaces = namespacesInAssembly.Where(x => x.Name.EndsWith(namespaceSuffix)).ToList();
-
-            AddServiceDefinitionsFromNamespaces(matchingNamespaces, serviceScope, immutableArrayBuilder, ct);
-        }
-
-        return immutableArrayBuilder.ToImmutable();
-    }
-
-    private static void AddServiceDefinitionsFromNamespaces(
-        List<INamespaceSymbol> matchingNamespaces,
-        int serviceScope,
-        ImmutableArray<ServiceDefinition>.Builder immutableArrayBuilder,
-        CancellationToken ct
-    )
-    {
-        foreach (INamespaceSymbol? @namespace in matchingNamespaces)
-        {
-            ct.ThrowIfCancellationRequested();
-
-            List<INamedTypeSymbol> instantiableTypesInNamespace = @namespace.GetInstantiableTypes();
-
-            if (instantiableTypesInNamespace.Count == 0)
-            {
-                continue;
-            }
-
-            AddServiceDefinitionsFromTypes(instantiableTypesInNamespace, serviceScope, immutableArrayBuilder, ct);
-        }
-    }
-
-    private static void AddServiceDefinitionsFromTypes(
-        List<INamedTypeSymbol> instantiableTypesInNamespace,
-        int serviceScope,
-        ImmutableArray<ServiceDefinition>.Builder immutableArrayBuilder,
-        CancellationToken ct
-    )
-    {
-        foreach (INamedTypeSymbol? typeSymbol in instantiableTypesInNamespace)
-        {
-            ct.ThrowIfCancellationRequested();
-            ServiceDefinition serviceDefinition = ServiceDefinitionFactory.CreateServiceDefinition(typeSymbol, serviceScope);
-            immutableArrayBuilder.Add(serviceDefinition);
-        }
     }
 }
