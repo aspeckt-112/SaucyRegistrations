@@ -224,7 +224,7 @@ public sealed class SaucyGenerator : IIncrementalGenerator
                             if (serviceDefinition is GenericServiceDefinition genericServiceDefinition)
                             {
                                 var arityString = genericServiceDefinition.Arity.GetArityString();
-                                var keyText = string.IsNullOrWhiteSpace(key) ? string.Empty : $"{key},";
+                                var keyText = string.IsNullOrWhiteSpace(key) ? " " : $" {key}, ";
                                 writer.AppendLine(
                                     $"{serviceScope}(typeof({name}{contractArityString}),{keyText}typeof({serviceDefinition.FullyQualifiedClassName}{arityString}));");
                             }
