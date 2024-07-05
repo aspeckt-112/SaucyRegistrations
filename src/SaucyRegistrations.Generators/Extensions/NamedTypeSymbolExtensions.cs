@@ -5,6 +5,7 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 
 using SaucyRegistrations.Generators.Models;
+using SaucyRegistrations.Generators.Models.Contracts;
 using SaucyRegistrations.Generators.SourceConstants.Attributes;
 
 namespace SaucyRegistrations.Generators.Extensions;
@@ -88,13 +89,26 @@ internal static class NamedTypeSymbolExtensions
 
     private static ContractDefinition CreateContractDefinition(INamedTypeSymbol typeSymbol)
     {
-        List<string>? genericTypeNames = null;
+        var fullyQualifiedName = typeSymbol.GetFullyQualifiedName();
+
+        if (typeSymbol.IsUnboundGenericType)
+        {
+            return new OpenGenericContractDefinition(fullyQualifiedName, typeSymbol.Arity);
+        }
 
         if (typeSymbol.IsGenericType)
         {
-            genericTypeNames = typeSymbol.TypeArguments.Select(x => x.GetFullyQualifiedName()).ToList();
+            var allTypeArgumentsAreKnown = typeSymbol.TypeArguments.All(x => x is INamedTypeSymbol);
+
+            if (allTypeArgumentsAreKnown)
+            {
+                var genericTypeNames = typeSymbol.TypeArguments.Select(x => x.GetFullyQualifiedName()).ToList();
+                return new KnownNamedTypeSymbolGenericContractDefinition(fullyQualifiedName, genericTypeNames);
+            }
+
+            return new OpenGenericContractDefinition(fullyQualifiedName, typeSymbol.Arity);
         }
 
-        return new ContractDefinition(typeSymbol.GetFullyQualifiedName(), genericTypeNames);
+        return new ContractDefinition(fullyQualifiedName);
     }
 }

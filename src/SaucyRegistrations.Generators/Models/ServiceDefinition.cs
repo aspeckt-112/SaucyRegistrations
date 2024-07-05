@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 
+using SaucyRegistrations.Generators.Models.Contracts;
+
 namespace SaucyRegistrations.Generators.Models;
 
 /// <summary>

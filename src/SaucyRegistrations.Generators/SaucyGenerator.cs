@@ -12,8 +12,10 @@ using Microsoft.CodeAnalysis.Text;
 using SaucyRegistrations.Generators.Builders;
 using SaucyRegistrations.Generators.Comparers;
 using SaucyRegistrations.Generators.Extensions;
+using SaucyRegistrations.Generators.Factories;
 using SaucyRegistrations.Generators.Infrastructure;
 using SaucyRegistrations.Generators.Models;
+using SaucyRegistrations.Generators.Models.Contracts;
 using SaucyRegistrations.Generators.SourceConstants.Attributes;
 using SaucyRegistrations.Generators.SourceConstants.Enums;
 
@@ -101,24 +103,14 @@ public sealed class SaucyGenerator : IIncrementalGenerator
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var symbol = (context.SemanticModel.GetDeclaredSymbol(context.Node) as INamedTypeSymbol) !;
+        var namedTypeSymbol = (context.SemanticModel.GetDeclaredSymbol(context.Node) as INamedTypeSymbol) !;
 
         AttributeData saucyIncludeAttribute =
-            symbol.GetAttributes().First(x => x.AttributeClass?.Name == nameof(SaucyInclude));
+            namedTypeSymbol.GetAttributes().First(x => x.AttributeClass?.Name == nameof(SaucyInclude));
 
         var serviceScope = (int)saucyIncludeAttribute.ConstructorArguments[0].Value!;
 
-        AttributeData? isKeyedServiceAttribute = symbol.GetAttributes()
-            .FirstOrDefault(x => x.AttributeClass?.Name == nameof(SaucyKeyedService));
-
-        string? key = null;
-
-        if (isKeyedServiceAttribute is not null)
-        {
-            key = isKeyedServiceAttribute.ConstructorArguments[0].Value?.ToString();
-        }
-
-        return new ServiceDefinition(symbol.GetFullyQualifiedName(), serviceScope, symbol.GetContractDefinitions(), key);
+        return ServiceDefinitionFactory.CreateServiceDefinition(namedTypeSymbol, serviceScope);
     }
 
     private void RegisterSourceOutput(
@@ -217,12 +209,30 @@ public sealed class SaucyGenerator : IIncrementalGenerator
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
-                        var name = contractDefinition.FullyQualifiedTypeName;
-                        if (contractDefinition.IsGeneric)
+                        var name = contractDefinition.TypeName;
+
+                        if (contractDefinition is KnownNamedTypeSymbolGenericContractDefinition closedGenericContractDefinition)
                         {
-                            var genericTypes = string.Join(",", contractDefinition.FullyQualifiedGenericTypeNames!);
+                            var genericTypes = string.Join(",", closedGenericContractDefinition.GenericTypeNames!);
                             writer.AppendLine(
                                 $"{serviceScope}<{name}<{genericTypes}>, {serviceDefinition.FullyQualifiedClassName}>({key});");
+                        }
+                        else if (contractDefinition is OpenGenericContractDefinition openGenericContractDefinition)
+                        {
+                            var contractArityString = openGenericContractDefinition.Arity.GetArityString();
+
+                            if (serviceDefinition is GenericServiceDefinition genericServiceDefinition)
+                            {
+                                var arityString = genericServiceDefinition.Arity.GetArityString();
+                                var keyText = string.IsNullOrWhiteSpace(key) ? " " : $" {key}, ";
+                                writer.AppendLine(
+                                    $"{serviceScope}(typeof({name}{contractArityString}),{keyText}typeof({serviceDefinition.FullyQualifiedClassName}{arityString}));");
+                            }
+                            else
+                            {
+                                writer.AppendLine(
+                                    $"{serviceScope}(typeof({name}{contractArityString}), typeof({serviceDefinition.FullyQualifiedClassName}));");
+                            }
                         }
                         else
                         {
@@ -233,7 +243,16 @@ public sealed class SaucyGenerator : IIncrementalGenerator
                 }
                 else
                 {
-                    writer.AppendLine($"{serviceScope}<{serviceDefinition.FullyQualifiedClassName}>({key});");
+                    if (serviceDefinition is GenericServiceDefinition genericServiceDefinition)
+                    {
+                        var arityString = genericServiceDefinition.Arity.GetArityString();
+                        var keyText = string.IsNullOrWhiteSpace(key) ? string.Empty : $", {key}";
+                        writer.AppendLine($"{serviceScope}(typeof({serviceDefinition.FullyQualifiedClassName}{arityString}){keyText});");
+                    }
+                    else
+                    {
+                        writer.AppendLine($"{serviceScope}<{serviceDefinition.FullyQualifiedClassName}>({key});");
+                    }
                 }
             }
 
