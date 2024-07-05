@@ -62,18 +62,6 @@ internal sealed class SourceWriter
     /// <summary>
     /// Appends a string to the source code.
     /// </summary>
-    /// <param name="value">The string to append.</param>
-    /// <returns>The current instance of the <see cref="SourceWriter"/>.</returns>
-    internal SourceWriter AppendLine(char value)
-    {
-        _sb.Append(new string(' ', _indentation * 4)).Append(value).AppendLine();
-
-        return this;
-    }
-
-    /// <summary>
-    /// Appends a string to the source code.
-    /// </summary>
     /// <returns>The current instance of the <see cref="SourceWriter"/>.</returns>
     private SourceWriter Indent()
     {

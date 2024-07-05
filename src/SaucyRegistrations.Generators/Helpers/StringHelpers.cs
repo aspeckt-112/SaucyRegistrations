@@ -12,6 +12,11 @@ internal static class StringHelpers
     /// <returns>The normalized string.</returns>
     internal static string Normalize(string input)
     {
+        if (string.IsNullOrEmpty(input))
+        {
+            return input;
+        }
+
         return input.Replace("\r\n", "\n");
     }
 }

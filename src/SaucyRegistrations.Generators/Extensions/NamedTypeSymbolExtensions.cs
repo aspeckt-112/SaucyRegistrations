@@ -1,12 +1,4 @@
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
-
 using Microsoft.CodeAnalysis;
-
-using SaucyRegistrations.Generators.Models;
-using SaucyRegistrations.Generators.Models.Contracts;
-using SaucyRegistrations.Generators.SourceConstants.Attributes;
 
 namespace SaucyRegistrations.Generators.Extensions;
 
