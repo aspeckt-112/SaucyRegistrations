@@ -16,6 +16,18 @@ internal sealed class SourceWriter
     public override string ToString() => _sb.ToString();
 
     /// <summary>
+    /// Appends a string to the source code.
+    /// </summary>
+    /// <param name="value">The string to append.</param>
+    /// <returns>The current instance of the <see cref="SourceWriter"/>.</returns>
+    internal SourceWriter AppendLine(string value)
+    {
+        _sb.Append(new string(' ', _indentation * 4)).AppendLine(value);
+
+        return this;
+    }
+
+    /// <summary>
     /// Appends a header to the source code.
     /// </summary>
     /// <param name="assemblyName">The name of the assembly.</param>
@@ -50,39 +62,6 @@ internal sealed class SourceWriter
     /// <summary>
     /// Appends a string to the source code.
     /// </summary>
-    /// <returns>The current instance of the <see cref="SourceWriter"/>.</returns>
-    internal SourceWriter Indent()
-    {
-        _indentation++;
-
-        return this;
-    }
-
-    /// <summary>
-    /// Appends a string to the source code.
-    /// </summary>
-    /// <returns>The current instance of the <see cref="SourceWriter"/>.</returns>
-    internal SourceWriter UnIndent()
-    {
-        _indentation = Math.Max(0, _indentation - 1);
-
-        return this;
-    }
-
-    /// <summary>
-    /// Appends a string to the source code.
-    /// </summary>
-    /// <returns>The current instance of the <see cref="SourceWriter"/>.</returns>
-    internal SourceWriter AppendLine()
-    {
-        _sb.AppendLine();
-
-        return this;
-    }
-
-    /// <summary>
-    /// Appends a string to the source code.
-    /// </summary>
     /// <param name="value">The string to append.</param>
     /// <returns>The current instance of the <see cref="SourceWriter"/>.</returns>
     internal SourceWriter AppendLine(char value)
@@ -95,11 +74,32 @@ internal sealed class SourceWriter
     /// <summary>
     /// Appends a string to the source code.
     /// </summary>
-    /// <param name="value">The string to append.</param>
     /// <returns>The current instance of the <see cref="SourceWriter"/>.</returns>
-    internal SourceWriter AppendLine(string value)
+    private SourceWriter Indent()
     {
-        _sb.Append(new string(' ', _indentation * 4)).AppendLine(value);
+        _indentation++;
+
+        return this;
+    }
+
+    /// <summary>
+    /// Appends a string to the source code.
+    /// </summary>
+    /// <returns>The current instance of the <see cref="SourceWriter"/>.</returns>
+    private SourceWriter UnIndent()
+    {
+        _indentation = Math.Max(0, _indentation - 1);
+
+        return this;
+    }
+
+    /// <summary>
+    /// Appends a string to the source code.
+    /// </summary>
+    /// <returns>The current instance of the <see cref="SourceWriter"/>.</returns>
+    private SourceWriter AppendLine()
+    {
+        _sb.AppendLine();
 
         return this;
     }
@@ -108,11 +108,8 @@ internal sealed class SourceWriter
     /// Appends a string (without a new line) to the source code.
     /// </summary>
     /// <param name="value">The string to append.</param>
-    /// <returns>The current instance of the <see cref="SourceWriter"/>.</returns>
-    internal SourceWriter Append(char value)
+    private void Append(char value)
     {
         _sb.Append(value);
-
-        return this;
     }
 }

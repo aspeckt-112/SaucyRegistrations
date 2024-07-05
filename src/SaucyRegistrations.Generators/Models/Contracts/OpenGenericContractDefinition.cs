@@ -1,6 +1,3 @@
-using System.Linq;
-using System.Text;
-
 namespace SaucyRegistrations.Generators.Models.Contracts;
 
 /// <summary>
