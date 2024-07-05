@@ -208,7 +208,41 @@ internal static class ServiceDefinitionFactory
             return new OpenGenericContractDefinition(fullyQualifiedName, typeSymbol.Arity);
         }
 
-        var genericTypeNames = typeSymbol.TypeArguments.Select(x => x.GetFullyQualifiedName()).ToList();
+        var genericTypeNames = GetGenericTypeNames(typeSymbol);
         return new KnownNamedTypeSymbolGenericContractDefinition(fullyQualifiedName, genericTypeNames);
+    }
+
+    private static List<string> GetGenericTypeNames(INamedTypeSymbol typeSymbol)
+    {
+        if (!typeSymbol.IsGenericType)
+        {
+            return [typeSymbol.GetFullyQualifiedName()];
+        }
+
+        var genericTypeNames = new List<string>();
+
+        foreach (var argument in typeSymbol.TypeArguments)
+        {
+            if (argument is not INamedTypeSymbol namedTypeArgument)
+            {
+                continue;
+            }
+
+            var typeName = namedTypeArgument.GetFullyQualifiedName();
+            if (namedTypeArgument.IsGenericType)
+            {
+                // Construct the name for nested generic types, including their namespaces
+                var nestedGenericTypeNames = GetGenericTypeNames(namedTypeArgument);
+                var nestedGenericTypeName = $"{typeName}<{string.Join(", ", nestedGenericTypeNames)}>";
+                genericTypeNames.Add(nestedGenericTypeName);
+            }
+            else
+            {
+                // Directly add the fully qualified name for non-generic types
+                genericTypeNames.Add(typeName);
+            }
+        }
+
+        return genericTypeNames;
     }
 }

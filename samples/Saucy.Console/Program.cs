@@ -21,12 +21,13 @@ var service = serviceProvider.GetRequiredService<IService>();
 
 var anotherService = serviceProvider.GetRequiredService<ConcreteSingleton>();
 
+var yetAnotherService = serviceProvider.GetRequiredService<IGenericInterface<Dictionary<string, List<int>>>>();
+
 // Get keyed service
 var keyedService = serviceProvider.GetRequiredKeyedService<IKeyed>("KeyedBig");
 
 if (keyedService is not null)
 {
-
 }
 
 
