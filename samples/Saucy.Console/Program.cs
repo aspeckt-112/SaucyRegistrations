@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
+using Saucy.Console.Generics;
 using Saucy.Console.Keyed;
 using Saucy.Console.ServiceCollectionExtensions;
 using Saucy.Console.Services;

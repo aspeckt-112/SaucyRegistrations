@@ -224,8 +224,9 @@ public sealed class SaucyGenerator : IIncrementalGenerator
                             if (serviceDefinition is GenericServiceDefinition genericServiceDefinition)
                             {
                                 var arityString = genericServiceDefinition.Arity.GetArityString();
+                                var keyText = string.IsNullOrWhiteSpace(key) ? string.Empty : $"{key},";
                                 writer.AppendLine(
-                                    $"{serviceScope}(typeof({name}{contractArityString}), typeof({serviceDefinition.FullyQualifiedClassName}{arityString}));");
+                                    $"{serviceScope}(typeof({name}{contractArityString}),{keyText}typeof({serviceDefinition.FullyQualifiedClassName}{arityString}));");
                             }
                             else
                             {
@@ -245,7 +246,8 @@ public sealed class SaucyGenerator : IIncrementalGenerator
                     if (serviceDefinition is GenericServiceDefinition genericServiceDefinition)
                     {
                         var arityString = genericServiceDefinition.Arity.GetArityString();
-                        writer.AppendLine($"{serviceScope}(typeof({serviceDefinition.FullyQualifiedClassName}{arityString}));");
+                        var keyText = string.IsNullOrWhiteSpace(key) ? string.Empty : $", {key}";
+                        writer.AppendLine($"{serviceScope}(typeof({serviceDefinition.FullyQualifiedClassName}{arityString}){keyText});");
                     }
                     else
                     {
