@@ -42,10 +42,12 @@ public sealed class SaucyGenerator : IIncrementalGenerator
         try
         {
             AssemblyNameProvider assemblyNameProvider = context.CompilationProvider.GetAssemblyName();
-            AssemblyAttributesProvider assemblyAttributesProvider = context.CompilationProvider.GetNamespacesToInclude();
+            AssemblyAttributesProvider assemblyAttributesProvider =
+                context.CompilationProvider.GetNamespacesToInclude();
 
             IncrementalValuesProvider<ServiceDefinition> serviceDefinitionProvider =
-                context.SyntaxProvider.CreateSyntaxProvider(NodeIsClassDeclarationWithSaucyAttributes, GetServiceDetails);
+                context.SyntaxProvider.CreateSyntaxProvider(NodeIsClassDeclarationWithSaucyAttributes,
+                    GetServiceDetails);
 
             ServicesProvider servicesProvider = serviceDefinitionProvider
                 .Collect()
@@ -121,7 +123,7 @@ public sealed class SaucyGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(
             servicesProvider, (ctx, servicesPair) =>
             {
-                var cancellationToken = ctx.CancellationToken;
+                CancellationToken cancellationToken = ctx.CancellationToken;
 
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -151,18 +153,19 @@ public sealed class SaucyGenerator : IIncrementalGenerator
         );
     }
 
-    private void Generate(SourceProductionContext context, string assemblyName, HashSet<ServiceDefinition> servicesToRegister)
+    private void Generate(SourceProductionContext context, string assemblyName,
+        HashSet<ServiceDefinition> servicesToRegister)
     {
-        var cancellationToken = context.CancellationToken;
+        CancellationToken cancellationToken = context.CancellationToken;
         cancellationToken.ThrowIfCancellationRequested();
 
-        SourceWriter sourceWriter = new SourceWriter();
+        var sourceWriter = new SourceWriter();
         var assemblyNameWithoutPeriods = assemblyName.Replace(".", string.Empty);
         var className = $"{assemblyNameWithoutPeriods}ServiceCollectionExtensions";
 
         AppendHeader(sourceWriter, assemblyName, className);
 
-        foreach (var serviceDefinition in servicesToRegister.OrderBy(x => x.FullyQualifiedClassName))
+        foreach (ServiceDefinition? serviceDefinition in servicesToRegister.OrderBy(x => x.FullyQualifiedClassName))
         {
             cancellationToken.ThrowIfCancellationRequested();
             AppendServiceRegistration(sourceWriter, serviceDefinition, cancellationToken);
@@ -187,7 +190,8 @@ public sealed class SaucyGenerator : IIncrementalGenerator
             .AppendLine($"public static class {className}")
             .AppendLine("{")
             .Indent()
-            .AppendLine($"public static IServiceCollection Add{assemblyName.Replace(".", string.Empty)}Services(this IServiceCollection services)")
+            .AppendLine(
+                $"public static IServiceCollection Add{assemblyName.Replace(".", string.Empty)}Services(this IServiceCollection services)")
             .AppendLine("{")
             .Indent();
     }
@@ -197,70 +201,102 @@ public sealed class SaucyGenerator : IIncrementalGenerator
         ServiceDefinition serviceDefinition,
         CancellationToken cancellationToken)
     {
-        Dictionary<int, string> serviceScopeEnumValues = new()
-        {
-            { ServiceScope.SingletonScopeValue, "services.Add{0}Singleton" },
-            { ServiceScope.TransientScopeValue, "services.Add{0}Transient" },
-            { ServiceScope.ScopedScopeValue, "services.Add{0}Scoped" }
-        };
-
-        var isKeyedService = serviceDefinition.IsKeyed;
-        var serviceScopeValue = (int)serviceDefinition.ServiceScope!;
-        var serviceScope = string.Format(serviceScopeEnumValues[serviceScopeValue], isKeyedService ? "Keyed" : string.Empty);
-        var key = isKeyedService ? $"\"{serviceDefinition.Key}\"" : string.Empty;
+        var serviceScope = GetServiceScopeString(serviceDefinition);
 
         if (serviceDefinition.HasContracts)
         {
             foreach (ContractDefinition? contractDefinition in serviceDefinition.ContractDefinitions!)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-
-                var name = contractDefinition.TypeName;
-
-                if (contractDefinition is KnownNamedTypeSymbolGenericContractDefinition closedGenericContractDefinition)
-                {
-                    var genericTypes = string.Join(",", closedGenericContractDefinition.GenericTypeNames!);
-                    writer.AppendLine(
-                        $"{serviceScope}<{name}<{genericTypes}>, {serviceDefinition.FullyQualifiedClassName}>({key});");
-                }
-                else if (contractDefinition is OpenGenericContractDefinition openGenericContractDefinition)
-                {
-                    var contractArityString = openGenericContractDefinition.Arity.GetArityString();
-
-                    if (serviceDefinition is GenericServiceDefinition genericServiceDefinition)
-                    {
-                        var arityString = genericServiceDefinition.Arity.GetArityString();
-                        var keyText = string.IsNullOrWhiteSpace(key) ? " " : $" {key}, ";
-                        writer.AppendLine(
-                            $"{serviceScope}(typeof({name}{contractArityString}),{keyText}typeof({serviceDefinition.FullyQualifiedClassName}{arityString}));");
-                    }
-                    else
-                    {
-                        writer.AppendLine(
-                            $"{serviceScope}(typeof({name}{contractArityString}), typeof({serviceDefinition.FullyQualifiedClassName}));");
-                    }
-                }
-                else
-                {
-                    writer.AppendLine(
-                        $"{serviceScope}<{name}, {serviceDefinition.FullyQualifiedClassName}>({key});");
-                }
+                AppendContractRegistration(writer, serviceDefinition, contractDefinition, serviceScope);
             }
         }
         else
         {
+            AppendSimpleRegistration(writer, serviceDefinition, serviceScope);
+        }
+    }
+
+    private string GetServiceScopeString(ServiceDefinition serviceDefinition)
+    {
+        var serviceScopes = new Dictionary<int, string>
+        {
+            { ServiceScope.SingletonScopeValue, "Singleton" },
+            { ServiceScope.TransientScopeValue, "Transient" },
+            { ServiceScope.ScopedScopeValue, "Scoped" }
+        };
+
+        var scope = serviceScopes[(int)serviceDefinition.ServiceScope!];
+
+        var sb = new StringBuilder();
+        sb.Append("services.");
+        sb.Append(serviceDefinition.IsKeyed ? $"AddKeyed{scope}" : $"Add{scope}");
+        return sb.ToString();
+    }
+
+    private void AppendContractRegistration(
+        SourceWriter writer,
+        ServiceDefinition serviceDefinition,
+        ContractDefinition contractDefinition,
+        string serviceScope)
+    {
+        var key = serviceDefinition.IsKeyed ? $"\"{serviceDefinition.Key}\"" : string.Empty;
+        var registrationString = ConstructRegistrationString(serviceDefinition, contractDefinition, serviceScope, key);
+        writer.AppendLine(registrationString);
+    }
+
+    private string ConstructRegistrationString(
+        ServiceDefinition serviceDefinition,
+        ContractDefinition contractDefinition,
+        string serviceScope,
+        string key)
+    {
+        if (contractDefinition is KnownNamedTypeSymbolGenericContractDefinition closedGenericContractDefinition)
+        {
+            var genericTypes = string.Join(",", closedGenericContractDefinition.GenericTypeNames!);
+            return
+                $"{serviceScope}<{contractDefinition.TypeName}<{genericTypes}>, {serviceDefinition.FullyQualifiedClassName}>({key});";
+        }
+
+        if (contractDefinition is OpenGenericContractDefinition openContractDefinition)
+        {
+            var contractArityString = openContractDefinition.Arity.GetArityString();
+
+            StringBuilder serviceDefinitionArityBuilder = new();
+
             if (serviceDefinition is GenericServiceDefinition genericServiceDefinition)
             {
-                var arityString = genericServiceDefinition.Arity.GetArityString();
-                var keyText = string.IsNullOrWhiteSpace(key) ? string.Empty : $", {key}";
-                writer.AppendLine(
-                    $"{serviceScope}(typeof({serviceDefinition.FullyQualifiedClassName}{arityString}){keyText});");
+                serviceDefinitionArityBuilder.Append(genericServiceDefinition.Arity.GetArityString());
             }
-            else
-            {
-                writer.AppendLine($"{serviceScope}<{serviceDefinition.FullyQualifiedClassName}>({key});");
-            }
+
+            var keyText = string.IsNullOrWhiteSpace(key) ? ", " : $", {key}, ";
+            return
+                $"{serviceScope}(typeof({contractDefinition.TypeName}{contractArityString}){keyText}typeof({serviceDefinition.FullyQualifiedClassName}{serviceDefinitionArityBuilder}));";
         }
+
+        return
+            $"{serviceScope}<{contractDefinition.TypeName}, {serviceDefinition.FullyQualifiedClassName}>({key});";
+    }
+
+    private void AppendSimpleRegistration(
+        SourceWriter writer,
+        ServiceDefinition serviceDefinition,
+        string serviceScope)
+    {
+        var key = serviceDefinition.IsKeyed ? $", \"{serviceDefinition.Key}\"" : string.Empty;
+
+        StringBuilder serviceDefinitionArityBuilder = new();
+
+        if (serviceDefinition is GenericServiceDefinition genericServiceDefinition)
+        {
+            serviceDefinitionArityBuilder.Append(genericServiceDefinition.Arity.GetArityString());
+        }
+
+        var registrationString = serviceDefinition is GenericServiceDefinition
+            ? $"{serviceScope}(typeof({serviceDefinition.FullyQualifiedClassName}{serviceDefinitionArityBuilder}){key});"
+            : $"{serviceScope}<{serviceDefinition.FullyQualifiedClassName}>({key.TrimStart(',').TrimStart(' ')});";
+
+        writer.AppendLine(registrationString);
     }
 
     private void AppendFooter(SourceWriter sourceWriter)
