@@ -93,14 +93,20 @@ internal static class NamedTypeSymbolExtensions
 
         if (typeSymbol.IsUnboundGenericType)
         {
-            return new OpenGenericContractDefinition(fullyQualifiedName, typeSymbol.TypeArguments.Length);
+            return new OpenGenericContractDefinition(fullyQualifiedName, typeSymbol.Arity);
         }
 
         if (typeSymbol.IsGenericType)
         {
-            var genericTypeNames = typeSymbol.TypeArguments.Select(x => x.GetFullyQualifiedName()).ToList();
+            var allTypeArgumentsAreKnown = typeSymbol.TypeArguments.All(x => x is INamedTypeSymbol);
 
-            return new ClosedGenericContractDefinition(fullyQualifiedName, genericTypeNames);
+            if (allTypeArgumentsAreKnown)
+            {
+                var genericTypeNames = typeSymbol.TypeArguments.Select(x => x.GetFullyQualifiedName()).ToList();
+                return new KnownNamedTypeSymbolGenericContractDefinition(fullyQualifiedName, genericTypeNames);
+            }
+
+            return new OpenGenericContractDefinition(fullyQualifiedName, typeSymbol.Arity);
         }
 
         return new ContractDefinition(fullyQualifiedName);

@@ -210,11 +210,28 @@ public sealed class SaucyGenerator : IIncrementalGenerator
                         cancellationToken.ThrowIfCancellationRequested();
 
                         var name = contractDefinition.TypeName;
-                        if (contractDefinition is ClosedGenericContractDefinition closedGenericContractDefinition)
+
+                        if (contractDefinition is KnownNamedTypeSymbolGenericContractDefinition closedGenericContractDefinition)
                         {
                             var genericTypes = string.Join(",", closedGenericContractDefinition.GenericTypeNames!);
                             writer.AppendLine(
                                 $"{serviceScope}<{name}<{genericTypes}>, {serviceDefinition.FullyQualifiedClassName}>({key});");
+                        }
+                        else if (contractDefinition is OpenGenericContractDefinition openGenericContractDefinition)
+                        {
+                            var contractArityString = openGenericContractDefinition.Arity.GetArityString();
+
+                            if (serviceDefinition is GenericServiceDefinition genericServiceDefinition)
+                            {
+                                var arityString = genericServiceDefinition.Arity.GetArityString();
+                                writer.AppendLine(
+                                    $"{serviceScope}(typeof({name}{contractArityString}), typeof({serviceDefinition.FullyQualifiedClassName}{arityString}));");
+                            }
+                            else
+                            {
+                                writer.AppendLine(
+                                    $"{serviceScope}(typeof({name}{contractArityString}), typeof({serviceDefinition.FullyQualifiedClassName}));");
+                            }
                         }
                         else
                         {
@@ -225,7 +242,15 @@ public sealed class SaucyGenerator : IIncrementalGenerator
                 }
                 else
                 {
-                    writer.AppendLine($"{serviceScope}<{serviceDefinition.FullyQualifiedClassName}>({key});");
+                    if (serviceDefinition is GenericServiceDefinition genericServiceDefinition)
+                    {
+                        var arityString = genericServiceDefinition.Arity.GetArityString();
+                        writer.AppendLine($"{serviceScope}(typeof({serviceDefinition.FullyQualifiedClassName}{arityString}));");
+                    }
+                    else
+                    {
+                        writer.AppendLine($"{serviceScope}<{serviceDefinition.FullyQualifiedClassName}>({key});");
+                    }
                 }
             }
 

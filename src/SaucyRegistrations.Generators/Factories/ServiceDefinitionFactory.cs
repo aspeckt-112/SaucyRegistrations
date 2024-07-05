@@ -31,6 +31,16 @@ internal static class ServiceDefinitionFactory
             key = isKeyedServiceAttribute.ConstructorArguments[0].Value?.ToString();
         }
 
+        if (namedTypeSymbol.IsGenericType)
+        {
+            return new GenericServiceDefinition(
+                namedTypeSymbol.GetFullyQualifiedName(),
+                serviceScope,
+                namedTypeSymbol.GetContractDefinitions(),
+                key,
+                namedTypeSymbol.TypeArguments.Length);
+        }
+
         return new ServiceDefinition(
             namedTypeSymbol.GetFullyQualifiedName(),
             serviceScope,

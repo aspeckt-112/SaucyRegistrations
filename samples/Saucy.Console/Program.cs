@@ -9,6 +9,7 @@ using SaucyConcreteTypes.Library.ServiceCollectionExtensions;
 
 var serviceCollection = new ServiceCollection();
 
+
 serviceCollection.AddSaucyConsoleServices();
 serviceCollection.AddSaucyConcreteTypesLibraryServices();
 

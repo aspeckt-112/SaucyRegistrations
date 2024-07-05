@@ -3,9 +3,11 @@ using System.Collections.Generic;
 namespace SaucyRegistrations.Generators.Models.Contracts;
 
 /// <summary>
-/// The closed generic contract definition.
+/// The known named type symbol generic contract definition.
 /// </summary>
-public class ClosedGenericContractDefinition(string typeName, IEnumerable<string> genericTypeNames)
+/// <param name="typeName">The type name.</param>
+/// <param name="genericTypeNames">The generic type names.</param>
+public class KnownNamedTypeSymbolGenericContractDefinition(string typeName, IEnumerable<string> genericTypeNames)
     : ContractDefinition(typeName)
 {
     /// <summary>
