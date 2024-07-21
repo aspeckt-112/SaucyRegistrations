@@ -45,7 +45,7 @@ var serviceCollection = new ServiceCollection();
 serviceCollection.AddYOUR_PROJECTServices();
 ```
 
-In essence, that's it. 
+In essence, that's it.
 
 # But this isn't saving me much time?
 
@@ -128,9 +128,7 @@ Doing that will register a concrete instance of `IncludedServiceWithScopeOverrid
 
 ## Support for generics?
 
-Saucy currently supports generics at an interface level, but not at a class level. 
-
-There's an open issue here: https://github.com/aspeckt-112/SaucyRegistrations/issues/33
+Saucy currently supports open and closed genetic types.
 
 
 #### I'm open to feedback, ideas and pull requests. Enjoy using Saucy!
