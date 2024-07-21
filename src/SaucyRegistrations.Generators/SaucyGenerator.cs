@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -11,8 +12,10 @@ using Microsoft.CodeAnalysis.Text;
 using SaucyRegistrations.Generators.Builders;
 using SaucyRegistrations.Generators.Comparers;
 using SaucyRegistrations.Generators.Extensions;
+using SaucyRegistrations.Generators.Factories;
 using SaucyRegistrations.Generators.Infrastructure;
 using SaucyRegistrations.Generators.Models;
+using SaucyRegistrations.Generators.Models.Contracts;
 using SaucyRegistrations.Generators.SourceConstants.Attributes;
 using SaucyRegistrations.Generators.SourceConstants.Enums;
 
@@ -35,25 +38,38 @@ public sealed class SaucyGenerator : IIncrementalGenerator
             }
         );
 
-        AssemblyNameProvider assemblyNameProvider = context.CompilationProvider.GetAssemblyName();
-        AssemblyAttributesProvider assemblyAttributesProvider = context.CompilationProvider.GetNamespacesToInclude();
+        try
+        {
+            AssemblyNameProvider assemblyNameProvider = context.CompilationProvider.GetAssemblyName();
+            AssemblyAttributesProvider assemblyAttributesProvider = context.CompilationProvider.GetNamespacesToInclude();
 
-        IncrementalValuesProvider<ServiceDefinition> serviceDefinitionProvider =
-            context.SyntaxProvider.CreateSyntaxProvider(NodeIsClassDeclarationWithSaucyAttributes, GetServiceDetails);
+            IncrementalValuesProvider<ServiceDefinition> serviceDefinitionProvider =
+                context.SyntaxProvider.CreateSyntaxProvider(
+                    NodeIsClassDeclarationWithSaucyAttributes,
+                    GetServiceDetails);
 
-        ServicesProvider servicesProvider = serviceDefinitionProvider.Collect().Combine(assemblyNameProvider)
-            .Combine(assemblyAttributesProvider);
+            ServicesProvider servicesProvider = serviceDefinitionProvider
+                .Collect()
+                .Combine(assemblyNameProvider)
+                .Combine(assemblyAttributesProvider);
 
-        RegisterSourceOutput(context, servicesProvider);
+            RegisterSourceOutput(context, servicesProvider);
+        }
+        catch (OperationCanceledException)
+        {
+            // Do nothing.
+        }
     }
 
     private void AddSaucyAttributes(IncrementalGeneratorPostInitializationContext ctx)
     {
         AttributeDefinitionBuilder allAttributes = new AttributeDefinitionBuilder()
             .AppendAttributeDefinition(SaucyInclude.SaucyIncludeAttributeDefinition)
-            .AppendAttributeDefinition(SaucyIncludeNamespaceWithSuffix.SaucyIncludeNamespaceWithSuffixAttributeDefinition)
+            .AppendAttributeDefinition(SaucyIncludeNamespace.SaucyIncludeNamespaceWithSuffixAttributeDefinition)
             .AppendAttributeDefinition(SaucyRegisterAbstractClass.SaucyRegisterAbstractClassAttributeDefinition)
-            .AppendAttributeDefinition(SaucyDoNotRegisterWithInterface.SaucyDoNotRegisterWithInterfaceDefinition);
+            .AppendAttributeDefinition(SaucyDoNotRegisterWithInterface.SaucyDoNotRegisterWithInterfaceDefinition)
+            .AppendAttributeDefinition(SaucyExclude.SaucyExcludeAttributeDefinition)
+            .AppendAttributeDefinition(SaucyKeyedService.SaucyKeyedServiceDefinition);
 
         ctx.AddSource("Saucy.Attributes.g.cs", SourceText.From(allAttributes.ToString(), Encoding.UTF8));
     }
@@ -67,22 +83,35 @@ public sealed class SaucyGenerator : IIncrementalGenerator
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        return node is ClassDeclarationSyntax cds && cds.AttributeLists.SelectMany(x => x.Attributes)
-            .Any(y => y.Name.ToString() == nameof(SaucyInclude));
+        switch (node)
+        {
+            case ClassDeclarationSyntax cds:
+                {
+                    AttributeSyntax[] attributes = cds
+                        .AttributeLists.SelectMany(x => x.Attributes)
+                        .ToArray();
+
+                    return attributes.Any(y => y.Name.ToString() == nameof(SaucyInclude)) &&
+                           attributes.All(y => y.Name.ToString() != nameof(SaucyExclude));
+                }
+
+            default:
+                return false;
+        }
     }
 
     private ServiceDefinition GetServiceDetails(GeneratorSyntaxContext context, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var symbol = (context.SemanticModel.GetDeclaredSymbol(context.Node) as INamedTypeSymbol) !;
+        var namedTypeSymbol = (context.SemanticModel.GetDeclaredSymbol(context.Node) as INamedTypeSymbol) !;
 
         AttributeData saucyIncludeAttribute =
-            symbol.GetAttributes().First(x => x.AttributeClass?.Name == nameof(SaucyInclude));
+            namedTypeSymbol.GetAttributes().First(x => x.AttributeClass?.Name == nameof(SaucyInclude));
 
         var serviceScope = (int)saucyIncludeAttribute.ConstructorArguments[0].Value!;
 
-        return new ServiceDefinition(symbol.GetFullyQualifiedName(), serviceScope, symbol.GetContractDefinitions());
+        return ServiceDefinitionFactory.CreateServiceDefinition(namedTypeSymbol, serviceScope);
     }
 
     private void RegisterSourceOutput(
@@ -93,6 +122,10 @@ public sealed class SaucyGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(
             servicesProvider, (ctx, servicesPair) =>
             {
+                CancellationToken cancellationToken = ctx.CancellationToken;
+
+                cancellationToken.ThrowIfCancellationRequested();
+
                 ImmutableArray<ServiceDefinition> servicesFromNamespace =
                     !servicesPair.NamespaceRegisteredServices.IsDefault
                         ? servicesPair.NamespaceRegisteredServices
@@ -110,6 +143,7 @@ public sealed class SaucyGenerator : IIncrementalGenerator
 
                 foreach (ServiceDefinition service in servicesFromNamespace)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     servicesToRegister.Add(service);
                 }
 
@@ -123,83 +157,107 @@ public sealed class SaucyGenerator : IIncrementalGenerator
         string assemblyName,
         HashSet<ServiceDefinition> servicesToRegister)
     {
-        context.CancellationToken.ThrowIfCancellationRequested();
+        CancellationToken cancellationToken = context.CancellationToken;
+        cancellationToken.ThrowIfCancellationRequested();
 
-        var writer = new SourceWriter();
-
-        Dictionary<int, string> serviceScopeEnumValues = new()
-        {
-            { ServiceScope.SingletonScopeValue, "services.AddSingleton" },
-            { ServiceScope.TransientScopeValue, "services.AddTransient" },
-            { ServiceScope.ScopedScopeValue, "services.AddScoped" }
-        };
-
+        var sourceWriter = new SourceWriter();
         var assemblyNameWithoutPeriods = assemblyName.Replace(".", string.Empty);
         var className = $"{assemblyNameWithoutPeriods}ServiceCollectionExtensions";
 
-        writer.AppendLine($"// <auto-generated by Saucy. DO NOT CHANGE THIS FILE!!! />")
-            .AppendLine("using Microsoft.Extensions.DependencyInjection;")
-            .AppendLine()
-            .AppendLine($"namespace {assemblyName}.ServiceCollectionExtensions;")
-            .AppendLine()
-            .AppendLine($"public static class {className}")
-            .AppendLine("{")
-            .Indent()
-            .AppendLine(
-                $"public static IServiceCollection Add{assemblyNameWithoutPeriods}Services(this IServiceCollection services)")
-            .AppendLine("{")
-            .Indent();
+        sourceWriter.AppendHeader(assemblyName, className);
 
-        var serviceCount = servicesToRegister.Count;
-
-        if (serviceCount == 0)
+        foreach (ServiceDefinition? serviceDefinition in servicesToRegister.OrderBy(x => x.FullyQualifiedClassName))
         {
-            writer.AppendLine("return services;");
+            cancellationToken.ThrowIfCancellationRequested();
+            AppendServiceRegistration(sourceWriter, serviceDefinition, cancellationToken);
+        }
+
+        sourceWriter.AppendFooter();
+
+        var hintName = $"{assemblyNameWithoutPeriods}.{className}.g.cs";
+        context.AddSource(hintName, SourceText.From(sourceWriter.ToString(), Encoding.UTF8));
+    }
+
+    private void AppendServiceRegistration(SourceWriter writer, ServiceDefinition serviceDefinition, CancellationToken cancellationToken)
+    {
+        var methodName = GetServiceScopeMethodName(serviceDefinition);
+        if (serviceDefinition.HasContracts)
+        {
+            foreach (var contractDefinition in serviceDefinition.ContractDefinitions!)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                AppendRegistration(writer, serviceDefinition, contractDefinition, methodName);
+            }
         }
         else
         {
-            foreach (ServiceDefinition serviceDefinition in servicesToRegister.OrderBy(x => x.FullyQualifiedClassName))
-            {
-                var serviceScopeValue = (int)serviceDefinition.ServiceScope!;
-                var serviceScope = serviceScopeEnumValues[serviceScopeValue];
-
-                if (serviceDefinition.HasContracts)
-                {
-                    foreach (ContractDefinition? contractDefinition in serviceDefinition.ContractDefinitions!)
-                    {
-                        var name = contractDefinition.FullyQualifiedTypeName;
-                        if (contractDefinition.IsGeneric)
-                        {
-                            var genericTypes = string.Join(",", contractDefinition.FullyQualifiedGenericTypeNames!);
-                            writer.AppendLine(
-                                $"{serviceScope}<{name}<{genericTypes}>, {serviceDefinition.FullyQualifiedClassName}>();");
-                        }
-                        else
-                        {
-                            writer.AppendLine(
-                                $"{serviceScope}<{name}, {serviceDefinition.FullyQualifiedClassName}>();");
-                        }
-                    }
-                }
-                else
-                {
-                    writer.AppendLine($"{serviceScope}<{serviceDefinition.FullyQualifiedClassName}>();");
-                }
-            }
-
-            writer.AppendLine("return services;");
+            AppendRegistration(writer, serviceDefinition, null, methodName);
         }
+    }
 
-        writer.UnIndent().AppendLine('}').UnIndent().Append('}');
+    private string GetServiceScopeMethodName(ServiceDefinition serviceDefinition)
+    {
+        var methodName = serviceDefinition.ServiceScope switch
+        {
+            ServiceScope.SingletonScopeValue => "services.Add{0}Singleton",
+            ServiceScope.TransientScopeValue => "services.Add{0}Transient",
+            ServiceScope.ScopedScopeValue => "services.Add{0}Scoped",
+            _ => throw new ArgumentOutOfRangeException(nameof(serviceDefinition.ServiceScope), $"Unsupported service scope: {serviceDefinition.ServiceScope}.")
+        };
 
-#if DEBUG   // Easy way to see the generated code when debugging.
-        var generatedCode = writer.ToString();
-#endif
+        return string.Format(methodName, serviceDefinition.IsKeyed ? "Keyed" : string.Empty);
+    }
 
-        var hintName = $"{assemblyNameWithoutPeriods}.{className}.g.cs";
+    private void AppendRegistration(SourceWriter writer, ServiceDefinition serviceDefinition, ContractDefinition? contractDefinition, string methodName)
+    {
+        var key = serviceDefinition.IsKeyed ? $"\"{serviceDefinition.Key}\"" : string.Empty;
 
-        context.AddSource(
-            hintName,
-            SourceText.From(writer.ToString(), Encoding.UTF8));
+        var registrationString = contractDefinition != null
+            ? ConstructContractRegistrationString(serviceDefinition, contractDefinition, methodName, key)
+            : ConstructSimpleRegistrationString(serviceDefinition, methodName, key);
+
+        writer.AppendLine(registrationString);
+    }
+
+    private string ConstructContractRegistrationString(
+        ServiceDefinition serviceDefinition,
+        ContractDefinition contractDefinition,
+        string methodName,
+        string key)
+    {
+        switch (contractDefinition)
+        {
+            case KnownNamedTypeSymbolGenericContractDefinition closedGenericContractDefinition:
+                {
+                    var genericTypes = string.Join(",", closedGenericContractDefinition.GenericTypeNames);
+                    return $"{methodName}<{contractDefinition.TypeName}<{genericTypes}>, {serviceDefinition.FullyQualifiedClassName}>({key});";
+                }
+
+            case OpenGenericContractDefinition openContractDefinition:
+                {
+                    var contractArityString = openContractDefinition.Arity.GetArityString();
+
+                    StringBuilder serviceDefinitionArityBuilder = new();
+
+                    if (serviceDefinition is GenericServiceDefinition genericServiceDefinition)
+                    {
+                        serviceDefinitionArityBuilder.Append(genericServiceDefinition.Arity.GetArityString());
+                    }
+
+                    return $"{methodName}(typeof({contractDefinition.TypeName}{contractArityString}){(string.IsNullOrWhiteSpace(key) ? ", " : $", {key}, ")}typeof({serviceDefinition.FullyQualifiedClassName}{serviceDefinitionArityBuilder}));";
+                }
+
+            default:
+                return $"{methodName}<{contractDefinition.TypeName}, {serviceDefinition.FullyQualifiedClassName}>({key});";
+        }
+    }
+
+    private string ConstructSimpleRegistrationString(ServiceDefinition serviceDefinition, string methodName, string key)
+    {
+        var keyParameter = string.IsNullOrEmpty(key) ? string.Empty : $", {key}";
+
+        return serviceDefinition is GenericServiceDefinition genericServiceDefinition
+            ? $"{methodName}(typeof({serviceDefinition.FullyQualifiedClassName}{genericServiceDefinition.Arity.GetArityString()}){keyParameter});"
+            : $"{methodName}<{serviceDefinition.FullyQualifiedClassName}>({key.TrimStart(',').TrimStart(' ')});";
     }
 }

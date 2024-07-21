@@ -1,11 +1,4 @@
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
-
 using Microsoft.CodeAnalysis;
-
-using SaucyRegistrations.Generators.Models;
-using SaucyRegistrations.Generators.SourceConstants.Attributes;
 
 namespace SaucyRegistrations.Generators.Extensions;
 
@@ -31,70 +24,5 @@ internal static class NamedTypeSymbolExtensions
         fullyQualifiedName += namedTypeSymbol.Name;
 
         return fullyQualifiedName;
-    }
-
-    /// <summary>
-    /// Gets the contracts for the named type symbol.
-    /// </summary>
-    /// <param name="namedTypeSymbol">The named type symbol.</param>
-    /// <returns>The contracts for the named type symbol.</returns>
-    internal static List<ContractDefinition> GetContractDefinitions(this INamedTypeSymbol namedTypeSymbol)
-    {
-        var contactDefinitions = new List<ContractDefinition>();
-
-        ImmutableArray<INamedTypeSymbol> interfaces = GetFilteredInterfaces(namedTypeSymbol);
-
-        if (ShouldRegisterBaseClass(namedTypeSymbol))
-        {
-            contactDefinitions.Add(CreateContractDefinition(namedTypeSymbol.BaseType!));
-            contactDefinitions.AddRange(interfaces.Select(CreateContractDefinition));
-        }
-        else if (ShouldRegisterInterfaces(namedTypeSymbol))
-        {
-            contactDefinitions.AddRange(interfaces.Select(CreateContractDefinition));
-        }
-        else if (interfaces.Length > 0)
-        {
-            contactDefinitions.AddRange(interfaces.Select(CreateContractDefinition));
-        }
-
-        return contactDefinitions;
-    }
-
-    private static ImmutableArray<INamedTypeSymbol> GetFilteredInterfaces(ITypeSymbol typeSymbol)
-    {
-        var interfacesToExclude = typeSymbol.GetAttributes()
-            .Where(x => x.AttributeClass?.Name == nameof(SaucyDoNotRegisterWithInterface))
-            .Select(x => x.ConstructorArguments[0].Value!.ToString())
-            .ToImmutableHashSet();
-
-        return [
-            ..typeSymbol.Interfaces
-                .Where(x => !interfacesToExclude.Contains(x.Name))
-        ];
-    }
-
-    private static bool ShouldRegisterBaseClass(INamedTypeSymbol namedTypeSymbol)
-    {
-        var hasAbstractBaseClass = namedTypeSymbol.BaseType is { IsAbstract: true };
-
-        var shouldRegisterAbstractClass = namedTypeSymbol.GetAttributes()
-            .Any(x => x.AttributeClass?.Name == nameof(SaucyRegisterAbstractClass));
-
-        return hasAbstractBaseClass && shouldRegisterAbstractClass;
-    }
-
-    private static bool ShouldRegisterInterfaces(INamedTypeSymbol namedTypeSymbol) => namedTypeSymbol.Interfaces.Length > 0;
-
-    private static ContractDefinition CreateContractDefinition(INamedTypeSymbol typeSymbol)
-    {
-        List<string>? genericTypeNames = null;
-
-        if (typeSymbol.IsGenericType)
-        {
-            genericTypeNames = typeSymbol.TypeArguments.Select(x => x.GetFullyQualifiedName()).ToList();
-        }
-
-        return new ContractDefinition(typeSymbol.GetFullyQualifiedName(), genericTypeNames);
     }
 }

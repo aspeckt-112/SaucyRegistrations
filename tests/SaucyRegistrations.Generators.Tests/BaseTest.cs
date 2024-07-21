@@ -1,5 +1,7 @@
 using Microsoft.CodeAnalysis.Testing;
 
+using SaucyRegistrations.Generators.Helpers;
+
 using GeneratorTest =
     Microsoft.CodeAnalysis.CSharp.Testing.CSharpSourceGeneratorTest<
         SaucyRegistrations.Generators.Tests.TestAdapter<SaucyRegistrations.Generators.SaucyGenerator>,
@@ -17,9 +19,9 @@ public abstract class BaseTest
                                            }
 
                                            [System.AttributeUsage(System.AttributeTargets.Assembly, Inherited = false, AllowMultiple = true)]
-                                           internal class SaucyIncludeNamespaceWithSuffix : System.Attribute
+                                           internal class SaucyIncludeNamespace : System.Attribute
                                            {
-                                               internal SaucyIncludeNamespaceWithSuffix(string suffix, ServiceScope defaultScope) { }
+                                               internal SaucyIncludeNamespace(string suffix, ServiceScope defaultScope) { }
                                            }
 
                                            [System.AttributeUsage(System.AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
@@ -32,6 +34,18 @@ public abstract class BaseTest
                                            internal class SaucyDoNotRegisterWithInterface : System.Attribute
                                            {
                                                internal SaucyDoNotRegisterWithInterface(string @interface) { }
+                                           }
+
+                                           [System.AttributeUsage(System.AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+                                           internal class SaucyExclude : System.Attribute
+                                           {
+                                               internal SaucyExclude() { }
+                                           }
+
+                                           [System.AttributeUsage(System.AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+                                           internal class SaucyKeyedService : System.Attribute
+                                           {
+                                               internal SaucyKeyedService(string key) { }
                                            }
 
 
@@ -61,17 +75,12 @@ public abstract class BaseTest
                 Sources = { input },
                 GeneratedSources =
                 {
-                    (typeof(TestAdapter<SaucyGenerator>), "Saucy.Attributes.g.cs", Normalize(AttributeSource)),
-                    (typeof(TestAdapter<SaucyGenerator>), "Saucy.Enums.g.cs", Normalize(EnumSource)),
+                    (typeof(TestAdapter<SaucyGenerator>), "Saucy.Attributes.g.cs", StringHelpers.Normalize(AttributeSource)),
+                    (typeof(TestAdapter<SaucyGenerator>), "Saucy.Enums.g.cs", StringHelpers.Normalize(EnumSource)),
                     (typeof(TestAdapter<SaucyGenerator>),
-                        "TestProject.TestProjectServiceCollectionExtensions.g.cs", Normalize(expectedOutput))
+                        "TestProject.TestProjectServiceCollectionExtensions.g.cs", StringHelpers.Normalize(expectedOutput))
                 }
             }
         }.RunAsync();
-    }
-
-    private static string Normalize(string input)
-    {
-        return input.Replace("\r\n", "\n");
     }
 }

@@ -1,5 +1,11 @@
 <Project>
-    <ItemGroup>
-        <AdditionalFiles Include="$(SolutionDir)\Stylecop.json" Link="Stylecop.json" />
-    </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="$(SolutionDir)\Stylecop.json" Link="Stylecop.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Nerdbank.GitVersioning" Condition="!Exists('packages.config')">
+      <PrivateAssets>all</PrivateAssets>
+      <Version>3.6.139</Version>
+    </PackageReference>
+  </ItemGroup>
 </Project>
