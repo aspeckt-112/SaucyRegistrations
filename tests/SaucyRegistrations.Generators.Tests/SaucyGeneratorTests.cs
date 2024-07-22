@@ -421,6 +421,7 @@ public class SaucyGeneratorTests : BaseTest
         await RunGenerator(input, expected);
     }
 
+    [Fact]
     public async Task SaucyExclude_When_UsingSaucyIncludeNamespace_SpecificClassShouldBeExcluded()
     {
         const string input = """
