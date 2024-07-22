@@ -104,14 +104,28 @@ internal static class ServiceDefinitionFactory
         {
             ct.ThrowIfCancellationRequested();
 
-            List<INamedTypeSymbol> instantiableTypesInNamespace = @namespace.GetInstantiableTypes();
+            ImmutableList<INamedTypeSymbol> instantiableTypesInNamespace = @namespace.GetInstantiableTypes();
 
             if (instantiableTypesInNamespace.Count == 0)
             {
                 continue;
             }
 
-            AddServiceDefinitionsFromTypes(instantiableTypesInNamespace, serviceScope, immutableArrayBuilder, ct);
+            List<INamedTypeSymbol> typesToCreateServiceDefinitionsFor = [];
+
+            foreach (INamedTypeSymbol namedTypeSymbol in instantiableTypesInNamespace)
+            {
+                // Skip the type if it's got the "SaucyExclude" attribute applied.
+                if (namedTypeSymbol.GetAttributes().Any(x => x.AttributeClass?.Name == nameof(SaucyExclude)))
+                {
+                    continue;
+                }
+
+                typesToCreateServiceDefinitionsFor.Add(namedTypeSymbol);
+            }
+
+            AddServiceDefinitionsFromTypes(typesToCreateServiceDefinitionsFor, serviceScope, immutableArrayBuilder, ct);
+
         }
     }
 
