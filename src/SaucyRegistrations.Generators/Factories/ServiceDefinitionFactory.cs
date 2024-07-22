@@ -125,6 +125,7 @@ internal static class ServiceDefinitionFactory
             }
 
             AddServiceDefinitionsFromTypes(typesToCreateServiceDefinitionsFor, serviceScope, immutableArrayBuilder, ct);
+
         }
     }
 
