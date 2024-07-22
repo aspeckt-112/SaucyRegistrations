@@ -1,0 +1,1 @@
+[assembly: SaucyIncludeNamespace(nameof(SaucyExcludeSample.Classes), ServiceScope.Singleton)]

@@ -255,7 +255,7 @@ public class SaucyGeneratorTests : BaseTest
     public async Task SaucyIncludeNamespace_When_NoClassHasServiceScopeOverride_Should_GenerateOutput()
     {
         const string input = """
-                             [assembly: SaucyIncludeNamespace(nameof(SaucyRegistrations.TestProject.Repositories), ServiceScope.Transient)]
+                             [assembly: SaucyIncludeNamespaceSample(nameof(SaucyRegistrations.TestProject.Repositories), ServiceScope.Transient)]
 
                              namespace SaucyRegistrations.TestProject.Repositories;
 
@@ -294,7 +294,7 @@ public class SaucyGeneratorTests : BaseTest
     public async Task SaucyIncludeNamespace_When_ClassHasServiceScopeOverride_Should_GenerateOutput()
     {
         const string input = """
-                             [assembly: SaucyIncludeNamespace(nameof(SaucyRegistrations.TestProject.Repositories), ServiceScope.Transient)]
+                             [assembly: SaucyIncludeNamespaceSample(nameof(SaucyRegistrations.TestProject.Repositories), ServiceScope.Transient)]
 
                              namespace SaucyRegistrations.TestProject.Repositories;
 
