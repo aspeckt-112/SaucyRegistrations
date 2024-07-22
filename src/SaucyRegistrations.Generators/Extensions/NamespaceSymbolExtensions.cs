@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 
 using Microsoft.CodeAnalysis;
@@ -33,11 +34,11 @@ internal static class NamespaceSymbolExtensions
     /// </summary>
     /// <param name="namespaceSymbol">The namespace symbol.</param>
     /// <returns>The instantiable types for the namespace symbol.</returns>
-    internal static List<INamedTypeSymbol> GetInstantiableTypes(this INamespaceSymbol namespaceSymbol)
+    internal static ImmutableList<INamedTypeSymbol> GetInstantiableTypes(this INamespaceSymbol namespaceSymbol)
     {
         List<INamedTypeSymbol> types = [];
         types.AddRange(namespaceSymbol.GetTypeMembers().Where(symbol => !symbol.IsAbstract && !symbol.IsStatic));
 
-        return types;
+        return types.ToImmutableList();
     }
 }
