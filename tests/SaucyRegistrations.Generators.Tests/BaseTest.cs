@@ -19,9 +19,9 @@ public abstract class BaseTest
                                            }
 
                                            [System.AttributeUsage(System.AttributeTargets.Assembly, Inherited = false, AllowMultiple = true)]
-                                           internal class SaucyIncludeNamespaceSample : System.Attribute
+                                           internal class SaucyIncludeNamespaceAttributeSample : System.Attribute
                                            {
-                                               internal SaucyIncludeNamespaceSample(string suffix, ServiceScope defaultScope) { }
+                                               internal SaucyIncludeNamespaceAttributeSample(string suffix, ServiceScope defaultScope) { }
                                            }
 
                                            [System.AttributeUsage(System.AttributeTargets.Class, Inherited = false, AllowMultiple = false)]

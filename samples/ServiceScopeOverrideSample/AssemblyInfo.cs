@@ -1,0 +1,1 @@
+[assembly: SaucyIncludeNamespace(nameof(ServiceScopeOverrideSample.ANamespaceToProvideScope), ServiceScope.Singleton)]

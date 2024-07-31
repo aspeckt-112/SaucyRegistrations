@@ -1,0 +1,2 @@
+[assembly: SaucyIncludeNamespace(nameof(SaucyIncludeNamespaceAttributeSample.NamespaceWithoutInterfaces), ServiceScope.Scoped)]
+[assembly: SaucyIncludeNamespace(nameof(SaucyIncludeNamespaceAttributeSample.NamespaceWithInterfaces), ServiceScope.Scoped)]
