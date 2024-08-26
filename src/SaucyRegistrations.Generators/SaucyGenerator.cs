@@ -181,6 +181,7 @@ public sealed class SaucyGenerator : IIncrementalGenerator
     private void AppendServiceRegistration(SourceWriter writer, ServiceDefinition serviceDefinition, CancellationToken cancellationToken)
     {
         var methodName = GetServiceScopeMethodName(serviceDefinition);
+
         if (serviceDefinition.HasContracts)
         {
             foreach (var contractDefinition in serviceDefinition.ContractDefinitions!)
