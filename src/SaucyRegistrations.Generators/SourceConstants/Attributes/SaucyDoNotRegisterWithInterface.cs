@@ -1,6 +1,6 @@
 namespace SaucyRegistrations.Generators.SourceConstants.Attributes;
 
-    /// <summary>
+/// <summary>
 /// The definition of the SaucyDoNotRegisterInterface attribute.
 /// </summary>
 internal static class SaucyDoNotRegisterWithInterface
