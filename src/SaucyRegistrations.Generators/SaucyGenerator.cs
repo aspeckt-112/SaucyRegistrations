@@ -248,6 +248,9 @@ public sealed class SaucyGenerator : IIncrementalGenerator
                     return $"{methodName}(typeof({contractDefinition.TypeName}{contractArityString}){(string.IsNullOrWhiteSpace(key) ? ", " : $", {key}, ")}typeof({serviceDefinition.FullyQualifiedClassName}{serviceDefinitionArityBuilder}));";
                 }
 
+            case HostedServiceContractDefinition hostedServiceContractDefinition:
+                return $"services.AddHostedService<{hostedServiceContractDefinition.TypeName}>({key});";
+
             default:
                 return $"{methodName}<{contractDefinition.TypeName}, {serviceDefinition.FullyQualifiedClassName}>({key});";
         }
