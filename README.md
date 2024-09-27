@@ -1,6 +1,3 @@
-# Note
-As of version 1.4, Saucy is currently in maintenance mode. This means that bugs will be fixed, PRs will be welcomed, and any new features of `Microsoft.Extensions.DependencyInjection` will be considered for support. However, I'm not currently working on any new features or improvements. I use Saucy in multiple projects, both at work and in my free time, and I'll continue to maintain it as long as I'm a .NET developer.
-
 # Saucy Registrations
 
 I've worked on a few large enterprise projects that made use of a dependency injection container. Across multiple different projects at various jobs, there existed some code to "automagically" register services with the container following some sort of convention. For example, classes that ended with "Repository" would be registered as a singleton, while classes that ended with "Service" would be registered as transient, etc. This code was always done with reflection, which was normally a pain to maintain and always seemed to be a bit of a black box.
