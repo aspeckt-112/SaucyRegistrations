@@ -150,11 +150,15 @@ internal static class ServiceDefinitionFactory
     /// <returns>The contracts for the named type symbol.</returns>
     private static List<ContractDefinition> GetContractDefinitions(INamedTypeSymbol namedTypeSymbol)
     {
-        var contactDefinitions = new List<ContractDefinition>();
+        List<ContractDefinition> contactDefinitions = [];
 
         ImmutableArray<INamedTypeSymbol> interfaces = GetFilteredInterfaces(namedTypeSymbol);
 
-        if (ShouldRegisterBaseClass(namedTypeSymbol))
+        if (namedTypeSymbol.IsOneOf("IHostedService", "BackgroundService"))
+        {
+            contactDefinitions.Add(new HostedServiceContractDefinition(namedTypeSymbol.GetFullyQualifiedName()));
+        }
+        else if (ShouldRegisterBaseClass(namedTypeSymbol))
         {
             contactDefinitions.Add(CreateContractDefinition(namedTypeSymbol.BaseType!));
             contactDefinitions.AddRange(interfaces.Select(CreateContractDefinition));
@@ -200,28 +204,29 @@ internal static class ServiceDefinitionFactory
         return namedTypeSymbol.Interfaces.Length > 0;
     }
 
-    private static ContractDefinition CreateContractDefinition(INamedTypeSymbol typeSymbol)
+    private static ContractDefinition CreateContractDefinition(INamedTypeSymbol abstractTypeSymbol)
     {
-        var fullyQualifiedName = typeSymbol.GetFullyQualifiedName();
+        var fullyQualifiedName = abstractTypeSymbol.GetFullyQualifiedName();
 
-        if (typeSymbol.IsUnboundGenericType)
+        if (abstractTypeSymbol.IsUnboundGenericType)
         {
-            return new OpenGenericContractDefinition(fullyQualifiedName, typeSymbol.Arity);
+            return new OpenGenericContractDefinition(fullyQualifiedName, abstractTypeSymbol.Arity);
         }
 
-        if (!typeSymbol.IsGenericType)
+        if (!abstractTypeSymbol.IsGenericType)
         {
             return new ContractDefinition(fullyQualifiedName);
         }
 
-        var allTypeArgumentsAreKnown = typeSymbol.TypeArguments.All(x => x is INamedTypeSymbol);
+        var allTypeArgumentsAreKnown = abstractTypeSymbol.TypeArguments.All(x => x is INamedTypeSymbol);
 
         if (!allTypeArgumentsAreKnown)
         {
-            return new OpenGenericContractDefinition(fullyQualifiedName, typeSymbol.Arity);
+            return new OpenGenericContractDefinition(fullyQualifiedName, abstractTypeSymbol.Arity);
         }
 
-        var genericTypeNames = GetGenericTypeNames(typeSymbol);
+        var genericTypeNames = GetGenericTypeNames(abstractTypeSymbol);
+
         return new KnownNamedTypeSymbolGenericContractDefinition(fullyQualifiedName, genericTypeNames);
     }
 

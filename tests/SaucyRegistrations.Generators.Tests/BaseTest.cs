@@ -2,10 +2,11 @@ using Microsoft.CodeAnalysis.Testing;
 
 using SaucyRegistrations.Generators.Helpers;
 
+// https://github.com/dotnet/roslyn-sdk/issues/1099#issuecomment-1723487931
 using GeneratorTest =
     Microsoft.CodeAnalysis.CSharp.Testing.CSharpSourceGeneratorTest<
         SaucyRegistrations.Generators.Tests.TestAdapter<SaucyRegistrations.Generators.SaucyGenerator>,
-        Microsoft.CodeAnalysis.Testing.Verifiers.XUnitVerifier>;
+        Microsoft.CodeAnalysis.Testing.DefaultVerifier>;
 
 namespace SaucyRegistrations.Generators.Tests;
 
@@ -66,9 +67,10 @@ public abstract class BaseTest
         {
             ReferenceAssemblies = ReferenceAssemblies
                 .Net
-                .Net60
+                .Net80
                 .AddPackages([
-                    new PackageIdentity("Microsoft.Extensions.DependencyInjection", "8.0.0")
+                    new PackageIdentity("Microsoft.Extensions.DependencyInjection", "8.0.0"),
+                    new PackageIdentity("Microsoft.Extensions.Hosting.Abstractions", "8.0.0")
                 ]),
             TestState =
             {
