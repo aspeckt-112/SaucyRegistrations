@@ -4,7 +4,7 @@ using System.Linq;
 using Microsoft.CodeAnalysis;
 
 using SaucyRegistrations.Generators.Factories;
-using SaucyRegistrations.Generators.SourceConstants.Attributes;
+using SaucyRegistrations.Generators.Models;
 
 namespace SaucyRegistrations.Generators.Extensions;
 
@@ -14,51 +14,71 @@ namespace SaucyRegistrations.Generators.Extensions;
 internal static class CompilationExtensions
 {
     /// <summary>
-    /// Gets the assembly name from the compilation.
+    /// Gets the assembly name from the compliation provider.
     /// </summary>
-    /// <param name="compilation">The compilation.</param>
+    /// <param name="compliationProvider">The compliation provider.</param>
     /// <returns>The assembly name.</returns>
-    internal static AssemblyNameProvider GetAssemblyName(this IncrementalValueProvider<Compilation> compilation)
+    /// <exception cref="OperationCanceledException">Thrown when the operation is canceled.</exception>
+    internal static AssemblyName GetAssemblyName(this CompilationProvider compliationProvider)
     {
-        return compilation.Select(
-            (c, ct) =>
+        return compliationProvider.Select(
+            (compliation, ct) =>
             {
                 ct.ThrowIfCancellationRequested();
-
-                return c.AssemblyName ?? string.Empty;
+                return compliation.AssemblyName ?? string.Empty;
             }
         );
     }
 
     /// <summary>
-    /// Gets the namespaces to include in the registration process.
+    /// Gets the namespaces to include in the registration process from the compilation provider.
     /// </summary>
-    /// <param name="provider">The compilation provider.</param>
-    /// <returns>The namespaces to include in the registration process.</returns>
-    /// <remarks>
-    /// This method will return an empty collection if no namespaces are found to include.
-    /// </remarks>
+    /// <param name="compilationProvider">The compilation provider.</param>
+    /// <returns>Service definitions from the included namespaces.</returns>
     /// <exception cref="OperationCanceledException">Thrown when the operation is canceled.</exception>
-    internal static AssemblyAttributesProvider GetNamespacesToInclude(
-        this IncrementalValueProvider<Compilation> provider)
+    internal static ServiceDefinitionsFromNamespace GetServiceDefinitionsFromIncludedNamespaces(
+        this CompilationProvider compilationProvider)
     {
-        return provider.Select(
-            (c, ct) =>
+        return compilationProvider.Select(
+            (compilation, ct) =>
             {
                 ct.ThrowIfCancellationRequested();
 
-                var includeNamespaceSuffixAttributes = c.Assembly.GetAttributes()
-                    .Where(x => x.AttributeClass?.Name == nameof(SaucyIncludeNamespace)).ToList();
+                SaucyIncludeNamespaceAttributes namespaceAttributes = compilation
+                    .Assembly
+                    .SaucyIncludeNamespaceAttributes();
 
-                if (includeNamespaceSuffixAttributes.Count == 0)
+                if (namespaceAttributes.Count == 0)
                 {
                     return default;
                 }
 
-                var namespacesInAssembly = c.Assembly.GlobalNamespace.GetAllNestedNamespaces().ToList();
+                var namespacesInAssembly = compilation
+                    .Assembly
+                    .GlobalNamespace
+                    .GetDescendantNamespaces()
+                    .ToList();
+
+                if (namespacesInAssembly.Count == 0)
+                {
+                    return default;
+                }
+
+                // Remove any namespaces that should not be included in the registration process.
+                foreach (var namespaceAttribute in namespaceAttributes)
+                {
+                    var namespaceName = namespaceAttribute.ConstructorArguments[0].Value?.ToString();
+
+                    if (namespaceName is null)
+                    {
+                        continue;
+                    }
+
+                    namespacesInAssembly.RemoveAll(x => !x.Name.EndsWith(namespaceName));
+                }
 
                 return ServiceDefinitionFactory.GetServiceDefinitionsFromNamespaces(
-                    includeNamespaceSuffixAttributes,
+                    namespaceAttributes,
                     namespacesInAssembly,
                     ct);
             }

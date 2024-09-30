@@ -4,6 +4,8 @@ using System.Linq;
 
 using Microsoft.CodeAnalysis;
 
+using SaucyRegistrations.Generators.Models;
+
 namespace SaucyRegistrations.Generators.Extensions;
 
 /// <summary>
@@ -12,17 +14,17 @@ namespace SaucyRegistrations.Generators.Extensions;
 internal static class NamespaceSymbolExtensions
 {
     /// <summary>
-    /// Gets all nested namespaces for the namespace symbol.
+    /// Gets all descendant namespaces for the namespace symbol.
     /// </summary>
-    /// <param name="namespaceSymbol">The namespace symbol.</param>
-    /// <returns>All nested namespaces for the namespace symbol.</returns>
-    internal static IEnumerable<INamespaceSymbol> GetAllNestedNamespaces(this INamespaceSymbol namespaceSymbol)
+    /// <param name="namespace">The namespace symbol.</param>
+    /// <returns>All descendant namespaces for the namespace symbol.</returns>
+    internal static IEnumerable<INamespaceSymbol> GetDescendantNamespaces(this INamespaceSymbol @namespace)
     {
-        foreach (INamespaceSymbol? symbol in namespaceSymbol.GetNamespaceMembers())
+        foreach (INamespaceSymbol? symbol in @namespace.GetNamespaceMembers())
         {
             yield return symbol;
 
-            foreach (INamespaceSymbol? childNamespace in GetAllNestedNamespaces(symbol))
+            foreach (INamespaceSymbol? childNamespace in GetDescendantNamespaces(symbol))
             {
                 yield return childNamespace;
             }
@@ -30,15 +32,15 @@ internal static class NamespaceSymbolExtensions
     }
 
     /// <summary>
-    /// Gets the instantiable types for the namespace symbol.
+    /// Gets the instantiable types in the namespace.
     /// </summary>
-    /// <param name="namespaceSymbol">The namespace symbol.</param>
-    /// <returns>The instantiable types for the namespace symbol.</returns>
-    internal static ImmutableList<INamedTypeSymbol> GetInstantiableTypes(this INamespaceSymbol namespaceSymbol)
+    /// <param name="namespace">The namespace symbol.</param>
+    /// <returns>The instantiable types in the namespace.</returns>
+    internal static ImmutableList<INamedTypeSymbol> GetInstantiableTypes(this INamespaceSymbol @namespace)
     {
-        List<INamedTypeSymbol> types = [];
-        types.AddRange(namespaceSymbol.GetTypeMembers().Where(symbol => !symbol.IsAbstract && !symbol.IsStatic));
-
-        return types.ToImmutableList();
+        return @namespace
+            .GetTypeMembers()
+            .Where(symbol => !symbol.IsAbstract && !symbol.IsStatic)
+            .ToImmutableList();
     }
 }

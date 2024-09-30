@@ -417,6 +417,9 @@ dotnet_diagnostic.sa1010.severity = none
 # SA0001: XML comment analysis is disabled
 dotnet_diagnostic.sa0001.severity = none
 
+# SA1106: Code should not contain empty statements
+dotnet_diagnostic.sa1106.severity = none
+
 tab_width = 4
 indent_size = 4
 end_of_line = crlf

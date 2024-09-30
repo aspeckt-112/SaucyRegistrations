@@ -9,7 +9,6 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
-using SaucyRegistrations.Generators.Builders;
 using SaucyRegistrations.Generators.Comparers;
 using SaucyRegistrations.Generators.Extensions;
 using SaucyRegistrations.Generators.Factories;
@@ -25,23 +24,28 @@ namespace SaucyRegistrations.Generators;
 /// The Saucy generator.
 /// </summary>
 [Generator]
-public sealed class SaucyGenerator : IIncrementalGenerator
+public sealed partial class SaucyGenerator : IIncrementalGenerator
 {
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        context.RegisterPostInitializationOutput(
-            ctx =>
-            {
-                AddSaucyAttributes(ctx);
-                AddSaucyEnums(ctx);
-            }
-        );
-
         try
         {
-            AssemblyNameProvider assemblyNameProvider = context.CompilationProvider.GetAssemblyName();
-            AssemblyAttributesProvider assemblyAttributesProvider = context.CompilationProvider.GetNamespacesToInclude();
+            context.RegisterPostInitializationOutput(
+                ctx =>
+                {
+                    AddSaucyAttributes(ctx);
+                    AddSaucyEnums(ctx);
+                }
+            );
+
+            AssemblyName assemblyName = context
+                .CompilationProvider
+                .GetAssemblyName();
+
+            ServiceDefinitionsFromNamespace serviceDefinitionsFromNamespace = context
+                .CompilationProvider
+                .GetServiceDefinitionsFromIncludedNamespaces();
 
             IncrementalValuesProvider<ServiceDefinition> serviceDefinitionProvider =
                 context.SyntaxProvider.CreateSyntaxProvider(
@@ -50,33 +54,15 @@ public sealed class SaucyGenerator : IIncrementalGenerator
 
             ServicesProvider servicesProvider = serviceDefinitionProvider
                 .Collect()
-                .Combine(assemblyNameProvider)
-                .Combine(assemblyAttributesProvider);
+                .Combine(assemblyName)
+                .Combine(serviceDefinitionsFromNamespace);
 
             RegisterSourceOutput(context, servicesProvider);
         }
         catch (OperationCanceledException)
         {
-            // Do nothing.
+            // Intentionally swallow the exception - the operation was cancelled.
         }
-    }
-
-    private void AddSaucyAttributes(IncrementalGeneratorPostInitializationContext ctx)
-    {
-        AttributeDefinitionBuilder allAttributes = new AttributeDefinitionBuilder()
-            .AppendAttributeDefinition(SaucyInclude.SaucyIncludeAttributeDefinition)
-            .AppendAttributeDefinition(SaucyIncludeNamespace.SaucyIncludeNamespaceWithSuffixAttributeDefinition)
-            .AppendAttributeDefinition(SaucyRegisterAbstractClass.SaucyRegisterAbstractClassAttributeDefinition)
-            .AppendAttributeDefinition(SaucyDoNotRegisterWithInterface.SaucyDoNotRegisterWithInterfaceDefinition)
-            .AppendAttributeDefinition(SaucyExclude.SaucyExcludeAttributeDefinition)
-            .AppendAttributeDefinition(SaucyKeyedService.SaucyKeyedServiceDefinition);
-
-        ctx.AddSource("Saucy.Attributes.g.cs", SourceText.From(allAttributes.ToString(), Encoding.UTF8));
-    }
-
-    private void AddSaucyEnums(IncrementalGeneratorPostInitializationContext ctx)
-    {
-        ctx.AddSource("Saucy.Enums.g.cs", SourceText.From(ServiceScope.ServiceScopeEnumDefinition, Encoding.UTF8));
     }
 
     private bool NodeIsClassDeclarationWithSaucyAttributes(SyntaxNode node, CancellationToken cancellationToken)
