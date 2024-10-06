@@ -18,6 +18,39 @@ namespace SaucyRegistrations.Generators.Factories;
 internal static class ServiceDefinitionFactory
 {
     /// <summary>
+    /// Gets the service definitions from the namespaces in the assembly.
+    /// </summary>
+    /// <param name="namespacesWithServiceScope">The namespaces with service scope.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The service definitions.</returns>
+    internal static ImmutableArray<ServiceDefinition> GetServiceDefinitionsFromNamespaces(List<(INamespaceSymbol Namespace, int ServiceScope)> namespacesWithServiceScope, CancellationToken cancellationToken)
+    {
+        ImmutableArray<ServiceDefinition>.Builder immutableArrayBuilder =
+            ImmutableArray.CreateBuilder<ServiceDefinition>();
+
+        foreach (var (@namespace, serviceScope) in namespacesWithServiceScope)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            ImmutableList<INamedTypeSymbol> instantiableTypesInNamespace = @namespace.GetInstantiableTypes();
+
+            if (instantiableTypesInNamespace.Count == 0)
+            {
+                continue;
+            }
+
+            foreach (INamedTypeSymbol namedTypeSymbol in instantiableTypesInNamespace)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ServiceDefinition serviceDefinition = CreateServiceDefinition(namedTypeSymbol, serviceScope);
+                immutableArrayBuilder.Add(serviceDefinition);
+            }
+        }
+
+        return immutableArrayBuilder.ToImmutable();
+    }
+
+    /// <summary>
     /// Creates a new instance of the <see cref="ServiceDefinitionFactory"/> class.
     /// </summary>
     /// <param name="namedTypeSymbol">The named type symbol.</param>
@@ -50,97 +83,6 @@ internal static class ServiceDefinitionFactory
             serviceScope,
             GetContractDefinitions(namedTypeSymbol),
             key);
-    }
-
-    /// <summary>
-    /// Gets the service definitions from the namespaces in the assembly.
-    /// </summary>
-    /// <param name="includeNamespaceSuffixAttributes">The include namespace suffix attributes.</param>
-    /// <param name="namespacesInAssembly">The namespaces in the assembly.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The service definitions.</returns>
-    internal static ImmutableArray<ServiceDefinition> GetServiceDefinitionsFromNamespaces(
-        List<AttributeData> includeNamespaceSuffixAttributes,
-        List<INamespaceSymbol> namespacesInAssembly,
-        CancellationToken cancellationToken
-    )
-    {
-        ImmutableArray<ServiceDefinition>.Builder immutableArrayBuilder =
-            ImmutableArray.CreateBuilder<ServiceDefinition>();
-
-        foreach (AttributeData? namespaceSuffixAttribute in includeNamespaceSuffixAttributes)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var namespaceSuffix = namespaceSuffixAttribute.ConstructorArguments[0].Value?.ToString();
-            var serviceScope = (int)namespaceSuffixAttribute.ConstructorArguments[1].Value!;
-
-            if (namespaceSuffix is null)
-            {
-                continue;
-            }
-
-            var matchingNamespaces = namespacesInAssembly.Where(x => x.Name.EndsWith(namespaceSuffix)).ToList();
-
-            AddServiceDefinitionsFromNamespaces(
-                matchingNamespaces,
-                serviceScope,
-                immutableArrayBuilder,
-                cancellationToken
-            );
-        }
-
-        return immutableArrayBuilder.ToImmutable();
-    }
-
-    private static void AddServiceDefinitionsFromNamespaces(
-        List<INamespaceSymbol> matchingNamespaces,
-        int serviceScope,
-        ImmutableArray<ServiceDefinition>.Builder immutableArrayBuilder,
-        CancellationToken ct
-    )
-    {
-        foreach (INamespaceSymbol? @namespace in matchingNamespaces)
-        {
-            ct.ThrowIfCancellationRequested();
-
-            ImmutableList<INamedTypeSymbol> instantiableTypesInNamespace = @namespace.GetInstantiableTypes();
-
-            if (instantiableTypesInNamespace.Count == 0)
-            {
-                continue;
-            }
-
-            List<INamedTypeSymbol> typesToCreateServiceDefinitionsFor = [];
-
-            foreach (INamedTypeSymbol namedTypeSymbol in instantiableTypesInNamespace)
-            {
-                // Skip the type if it's got the "SaucyExclude" attribute applied.
-                if (namedTypeSymbol.GetAttributes().Any(x => x.AttributeClass?.Name == nameof(SaucyExclude)))
-                {
-                    continue;
-                }
-
-                typesToCreateServiceDefinitionsFor.Add(namedTypeSymbol);
-            }
-
-            AddServiceDefinitionsFromTypes(typesToCreateServiceDefinitionsFor, serviceScope, immutableArrayBuilder, ct);
-        }
-    }
-
-    private static void AddServiceDefinitionsFromTypes(
-        List<INamedTypeSymbol> instantiableTypesInNamespace,
-        int serviceScope,
-        ImmutableArray<ServiceDefinition>.Builder immutableArrayBuilder,
-        CancellationToken ct
-    )
-    {
-        foreach (INamedTypeSymbol? typeSymbol in instantiableTypesInNamespace)
-        {
-            ct.ThrowIfCancellationRequested();
-            ServiceDefinition serviceDefinition = CreateServiceDefinition(typeSymbol, serviceScope);
-            immutableArrayBuilder.Add(serviceDefinition);
-        }
     }
 
     /// <summary>
@@ -225,7 +167,7 @@ internal static class ServiceDefinitionFactory
             return new OpenGenericContractDefinition(fullyQualifiedName, abstractTypeSymbol.Arity);
         }
 
-        var genericTypeNames = GetGenericTypeNames(abstractTypeSymbol);
+        List<string> genericTypeNames = GetGenericTypeNames(abstractTypeSymbol);
 
         return new KnownNamedTypeSymbolGenericContractDefinition(fullyQualifiedName, genericTypeNames);
     }
@@ -239,7 +181,7 @@ internal static class ServiceDefinitionFactory
 
         var genericTypeNames = new List<string>();
 
-        foreach (var argument in typeSymbol.TypeArguments)
+        foreach (ITypeSymbol? argument in typeSymbol.TypeArguments)
         {
             if (argument is not INamedTypeSymbol namedTypeArgument)
             {
@@ -250,7 +192,7 @@ internal static class ServiceDefinitionFactory
             if (namedTypeArgument.IsGenericType)
             {
                 // Construct the name for nested generic types, including their namespaces
-                var nestedGenericTypeNames = GetGenericTypeNames(namedTypeArgument);
+                List<string> nestedGenericTypeNames = GetGenericTypeNames(namedTypeArgument);
                 var nestedGenericTypeName = $"{typeName}<{string.Join(", ", nestedGenericTypeNames)}>";
                 genericTypeNames.Add(nestedGenericTypeName);
             }

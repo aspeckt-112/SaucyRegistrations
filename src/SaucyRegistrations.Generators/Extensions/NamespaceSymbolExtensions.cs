@@ -4,7 +4,7 @@ using System.Linq;
 
 using Microsoft.CodeAnalysis;
 
-using SaucyRegistrations.Generators.Models;
+using SaucyRegistrations.Generators.SourceConstants.Attributes;
 
 namespace SaucyRegistrations.Generators.Extensions;
 
@@ -39,8 +39,10 @@ internal static class NamespaceSymbolExtensions
     internal static ImmutableList<INamedTypeSymbol> GetInstantiableTypes(this INamespaceSymbol @namespace)
     {
         return @namespace
-            .GetTypeMembers()
-            .Where(symbol => !symbol.IsAbstract && !symbol.IsStatic)
-            .ToImmutableList();
+        .GetTypeMembers()
+        .Where(symbol => !symbol.IsAbstract && !symbol.IsStatic)
+        .Where(symbol => symbol.DeclaredAccessibility == Accessibility.Public)
+        .Where(symbol => !symbol.GetAttributes().Any(attr => attr.AttributeClass?.Name == nameof(SaucyExclude)))
+        .ToImmutableList();
     }
 }
